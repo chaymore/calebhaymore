@@ -60,17 +60,58 @@ export const essays = [
   },
 ];
 
+// Newest first. `date` is shown on the timeline; `href` links to the live project.
 export const projects: {
   title: string;
+  date: string;
   description: string;
   tags: string[];
   repo?: string;
   href?: string;
 }[] = [
   {
-    title: 'Automated End-of-Day Work Journal',
+    title: 'Context',
+    date: 'Sep 2026',
     description:
-      'A scheduled Claude Desktop agent that runs every evening and compiles a daily work journal entry without any manual effort. Each run, it pulls my Granola meeting recordings and transcripts, cross-references them against my Google Calendar events, and scans Notion for pages I created or updated that day. It then synthesizes everything into a structured summary — what I got done, what I learned, open tasks for the rest of the week, and the top priorities for tomorrow — and writes the result as a new sub-page inside my Notion Work Journal, titled with the date. The goal was to stop losing context between days and replace the 15–20 minutes I was spending on manual reflection with a log that is already waiting for me when I sit down the next morning.',
-    tags: ['Claude Desktop', 'Scheduled Tasks', 'Granola MCP', 'Notion MCP', 'Google Calendar MCP'],
+      'A public guide to collecting the context that already describes you (messages, email, calendar, files) and compiling it into a private knowledge wiki an AI agent can read. One prompt does the compiling.',
+    tags: ['Prompt design', 'Knowledge wiki'],
+    href: '/context',
+  },
+  {
+    title: 'Ask Caleb',
+    date: 'Sep 2026',
+    description:
+      'A digital version of me that answers questions out loud. Answers are grounded only in notes I have approved for the public, synced nightly from Google Drive into a Cloudflare database, and spoken through the 3D portrait with a lip-synced mouth.',
+    tags: ['Cloudflare Workers', 'D1', 'OpenRouter', 'Text-to-speech'],
+    href: '/',
+  },
+  {
+    title: '3D stippled portrait',
+    date: 'Sep 2026',
+    description:
+      'I turned a 25-second phone video of my head into a 3D scan, then rendered it as 165,000 black dots you can drag to rotate. The face blinks, and the jaw and lips move with speech.',
+    tags: ['Three.js', 'WebGL shaders', 'Photogrammetry'],
+    href: '/',
+  },
+  {
+    title: 'Life hub',
+    date: 'Aug 2026',
+    description:
+      'A private, PIN-gated workspace built as a calm animated meadow, with tiles for the things I check every day.',
+    tags: ['Canvas animation', 'Personal tools'],
+  },
+  {
+    title: 'Automated end-of-day work journal',
+    date: '2026',
+    description:
+      'A scheduled Claude agent that writes my work journal every evening. It pulls my Granola meeting transcripts, Google Calendar, and the Notion pages I touched that day, then writes what I did, what I learned, and tomorrow’s priorities into Notion. It replaced 15–20 minutes of manual reflection a day.',
+    tags: ['Claude Desktop', 'Scheduled tasks', 'Granola', 'Notion', 'Google Calendar'],
+  },
+  {
+    title: 'This website',
+    date: 'Mar 2026',
+    description:
+      'Built from scratch with Astro and deployed on GitHub Pages. Earlier versions had a terminal you could type into and a live three-body gravity simulation.',
+    tags: ['Astro', 'TypeScript', 'GitHub Pages'],
   },
 ];

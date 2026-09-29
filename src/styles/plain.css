@@ -1,4 +1,4 @@
-/* Shared by the minimal white pages: home and Context. */
+/* Shared by the minimal white pages: home, Context, and Projects. */
 html:has(body.plain) {
   background: #fff;
   color-scheme: light;

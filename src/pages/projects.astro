@@ -1,33 +1,136 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Nav from '../components/Nav.astro';
-import ProjectCard from '../components/ProjectCard.astro';
-import { projects, site } from '../data/site';
+import CornerLinks from '../components/CornerLinks.astro';
+import { projects } from '../data/site';
+
+const description = 'A timeline of the things Caleb Haymore has built.';
 ---
 
-<Layout title={`${site.name} | Projects`}>
-  <Nav />
+<Layout minimal bodyClass="plain" title="Caleb Haymore | Projects" description={description}>
+  <a class="home-link" href="/">Caleb Haymore</a>
+  <CornerLinks />
 
-  <main class="site-shell pt-28 pb-24 flex flex-col gap-8">
-    <header class="flex flex-col gap-3 pb-4">
-      <p class="type-line text-xs uppercase tracking-[0.22em] text-zinc-500">caleb@portfolio:~$ ls projects/</p>
-      <h1 class="text-4xl font-bold text-zinc-100 reveal">Projects</h1>
-      <p class="text-zinc-400 max-w-2xl reveal" style="--d: 0.08s">
-        Technical work, experiments, and systems collected on their own page.
-      </p>
-      <div class="ascii-rule reveal" style="--d: 0.14s" aria-hidden="true"></div>
+  <main class="projects">
+    <header>
+      <h1>Projects</h1>
+      <p>Things I've built, newest first.</p>
     </header>
 
-    {projects.length > 0 ? (
-      <section class="flex flex-col gap-4">
-        {projects.map((project, index) => (
-          <div class="reveal" style={`--d: ${0.2 + index * 0.08}s`}>
-            <ProjectCard {...project} />
-          </div>
-        ))}
-      </section>
-    ) : (
-      <p class="text-sm text-zinc-500">More coming soon.</p>
-    )}
+    <ol class="timeline">
+      {projects.map((project) => (
+        <li class="entry">
+          <p class="date">{project.date}</p>
+          <h2>
+            {project.href ? <a href={project.href}>{project.title}</a> : project.title}
+          </h2>
+          <p class="summary">{project.description}</p>
+          <p class="tags">{project.tags.join(' · ')}</p>
+          {project.repo && <a class="repo" href={project.repo} target="_blank" rel="noopener noreferrer">Code on GitHub</a>}
+        </li>
+      ))}
+    </ol>
   </main>
 </Layout>
+
+<style>
+  .projects {
+    width: min(100%, 40rem);
+    margin: 0 auto;
+    padding: 6rem 1.25rem 5rem;
+  }
+
+  header h1 {
+    margin: 0;
+    color: #111;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0.4rem 0 0;
+    color: #8a8a8a;
+    font-size: 0.95rem;
+  }
+
+  /* The vertical line is the list's left border; each entry's dot sits on it. */
+  .timeline {
+    list-style: none;
+    margin: 2.75rem 0 0;
+    padding: 0 0 0 1.6rem;
+    border-left: 1px solid #e3e3e3;
+  }
+
+  .entry {
+    position: relative;
+    padding-bottom: 2.6rem;
+  }
+
+  .entry:last-child {
+    padding-bottom: 0;
+  }
+
+  .entry::before {
+    content: '';
+    position: absolute;
+    top: 0.3rem;
+    left: calc(-1.6rem - 4.5px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #111;
+    box-shadow: 0 0 0 4px #fff;
+  }
+
+  .date {
+    margin: 0;
+    color: #8a8a8a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0.3rem 0 0;
+    color: #111;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  h2 a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: #cfcfcf;
+    text-underline-offset: 3px;
+  }
+
+  h2 a:hover,
+  h2 a:focus-visible {
+    text-decoration-color: #111;
+  }
+
+  .summary {
+    margin: 0.5rem 0 0;
+    color: #4a4a4a;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .tags {
+    margin: 0.6rem 0 0;
+    color: #9a9a9a;
+    font-size: 0.8rem;
+  }
+
+  .repo {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #8d8d8d;
+    font-size: 0.82rem;
+  }
+
+  .repo:hover {
+    color: #111;
+  }
+</style>
