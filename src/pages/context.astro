@@ -1,6 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import '../styles/plain.css';
 import '../styles/context.css';
+import CornerLinks from '../components/CornerLinks.astro';
 import { brainPrompt, corePrompt, filesPrompt, imessagePrompt } from '../data/prompts';
 
 const description =
@@ -10,6 +12,7 @@ const description =
 <Layout minimal bodyClass="plain" title="Caleb Haymore | Context" description={description}>
   <a class="skip" href="#core">Skip to the prompt</a>
   <a class="home-link" href="/">Caleb Haymore</a>
+  <CornerLinks />
 
   <main class="field">
     <h1 class="sr-only">Context</h1>

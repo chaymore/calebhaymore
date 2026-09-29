@@ -1,0 +1,49 @@
+/* Shared by the minimal white pages: home and Context. */
+html:has(body.plain) {
+  background: #fff;
+  color-scheme: light;
+}
+
+body.plain {
+  background: #fff;
+  color: #1c1c1c;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+.home-link {
+  position: fixed;
+  top: 1.15rem;
+  left: 1.25rem;
+  z-index: 5;
+  color: #8d8d8d;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+
+.home-link:hover {
+  color: #111;
+}
+
+.corner-links {
+  position: fixed;
+  top: 1.15rem;
+  right: 1.25rem;
+  z-index: 5;
+  display: flex;
+  gap: 1.1rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+}
+
+.corner-links a {
+  color: #8d8d8d;
+  text-decoration: none;
+}
+
+.corner-links a:hover,
+.corner-links a:focus-visible,
+.corner-links a[aria-current="page"] {
+  color: #111;
+}
