@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import HeadPortrait from '../components/HeadPortrait.astro';
+import CornerLinks from '../components/CornerLinks.astro';
 ---
 <Layout title="Caleb Haymore" description="Caleb Haymore — finance, law, and systems." home bodyClass="head-home">
+  <CornerLinks />
   <main aria-label="Caleb Haymore">
     <h1 class="sr-only">Caleb Haymore</h1>
     <HeadPortrait />
@@ -12,5 +14,6 @@ import HeadPortrait from '../components/HeadPortrait.astro';
   html:has(.head-home), body.head-home { background: #fff; }
   body.head-home { margin: 0; overflow: hidden; }
   .head-home main { width: 100%; height: 100svh; }
+  .head-home .corner-links { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .06em; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 </style>

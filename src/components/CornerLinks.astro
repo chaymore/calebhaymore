@@ -1,0 +1,15 @@
+---
+import '../styles/plain.css';
+
+const links = [
+  { href: '/context', label: 'Context' },
+];
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<nav class="corner-links" aria-label="Site">
+  {links.map((link) => (
+    <a href={link.href} aria-current={currentPath === link.href ? 'page' : undefined}>{link.label}</a>
+  ))}
+</nav>
