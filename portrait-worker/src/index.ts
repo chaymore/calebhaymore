@@ -13,7 +13,7 @@ interface Env extends SpeechEnv {
 }
 
 // Used when OPENROUTER_MODEL isn't set. Keep in sync with wrangler.jsonc.
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
+const DEFAULT_MODEL = '~openai/gpt-luna-latest';
 const DEFAULT_FALLBACK_MODEL = 'openai/gpt-4o-mini';
 
 interface RetrievedChunk { source_title: string; section: string; content: string }

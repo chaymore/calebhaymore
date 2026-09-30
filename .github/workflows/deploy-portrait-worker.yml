@@ -1,0 +1,44 @@
+name: Deploy portrait worker
+
+# Publishes portrait-worker/ to Cloudflare (and creates any new database tables).
+# Runs on demand from the Actions tab, and automatically when worker files change on main.
+# Needs two repository secrets: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. See docs/portrait-qa.md.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'portrait-worker/**'
+      - '.github/workflows/deploy-portrait-worker.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portrait-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: portrait-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: portrait-worker/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Create or update database tables
+        run: npm run db:init:remote
+      - name: Deploy
+        run: npm run deploy

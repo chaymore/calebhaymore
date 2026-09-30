@@ -24,7 +24,11 @@ npm run deploy
 
 Use separate long random values for `SYNC_TOKEN` and `RATE_LIMIT_SALT`. Save the deployed `https://…workers.dev` URL.
 
-The text model is `anthropic/claude-sonnet-4.5` (`OPENROUTER_MODEL` in `wrangler.jsonc`), with `openai/gpt-4o-mini` as an automatic fallback (`OPENROUTER_FALLBACK_MODEL`). Change either slug to any model listed on OpenRouter. Speech stays on `microsoft/mai-voice-2-flash` with `en-US-Harper:MAI-Voice-2` until a reference clip or Fish voice id is configured. Harper is synthetic, and the chat note says “AI-generated voice.” With a reference configured, `/speak` uses Fish Audio through OpenRouter (`fish-audio/s2.1-pro-free:free` by default; `fish-audio/s2.1-pro` when `FISH_TTS_MODEL` is set to that slug) and the note says “AI voice clone.” See [VOICE-CLONE.md](VOICE-CLONE.md) for the 20–45 second clip, the R2 object, and the `FISH_REFERENCE_ID` secret. `TTS_MODEL` and `TTS_VOICE` in `wrangler.jsonc` still select the Harper fallback.
+The text model is `~openai/gpt-luna-latest` (`OPENROUTER_MODEL` in `wrangler.jsonc`), with `openai/gpt-4o-mini` as an automatic fallback (`OPENROUTER_FALLBACK_MODEL`). Change either slug to any model listed on OpenRouter. Speech stays on `microsoft/mai-voice-2-flash` with `en-US-Harper:MAI-Voice-2` until a reference clip or Fish voice id is configured. Harper is synthetic, and the chat note says “AI-generated voice.” With a reference configured, `/speak` uses Fish Audio through OpenRouter (`fish-audio/s2.1-pro-free:free` by default; `fish-audio/s2.1-pro` when `FISH_TTS_MODEL` is set to that slug) and the note says “AI voice clone.” See [VOICE-CLONE.md](VOICE-CLONE.md) for the 20–45 second clip, the R2 object, and the `FISH_REFERENCE_ID` secret. `TTS_MODEL` and `TTS_VOICE` in `wrangler.jsonc` still select the Harper fallback.
+
+### Deploying without a terminal
+
+The **Deploy portrait worker** GitHub Action does the database setup and deploy for you. Add two repository secrets (Settings → Secrets and variables → Actions): `CLOUDFLARE_ACCOUNT_ID` (Cloudflare dashboard → Workers & Pages, right sidebar) and `CLOUDFLARE_API_TOKEN` (My Profile → API Tokens → Create Token → the **Edit Cloudflare Workers** template, then add **D1: Edit**). Then open Actions → Deploy portrait worker → Run workflow. It also re-runs automatically whenever a change under `portrait-worker/` reaches `main`.
 
 ## 2. Enable the homepage
 
