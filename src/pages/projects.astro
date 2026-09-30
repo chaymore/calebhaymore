@@ -1,9 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import CornerLinks from '../components/CornerLinks.astro';
-import { projects } from '../data/site';
+import { visibleProjects, type Project } from '../data/projects';
 
-const description = 'A timeline of the things Caleb Haymore has built.';
+const description = 'A timeline of the things Caleb Haymore has built, newest first.';
+
+// Group consecutive projects under one marker per era (a year, or a place).
+const eras: { era: string; items: Project[] }[] = [];
+for (const project of visibleProjects) {
+  const last = eras.at(-1);
+  if (last?.era === project.era) last.items.push(project);
+  else eras.push({ era: project.era, items: [project] });
+}
 ---
 
 <Layout minimal bodyClass="plain" title="Caleb Haymore | Projects" description={description}>
@@ -13,30 +21,86 @@ const description = 'A timeline of the things Caleb Haymore has built.';
   <main class="projects">
     <header>
       <h1>Projects</h1>
-      <p>Things I've built, newest first.</p>
+      <p>Things I’ve built, newest first. Scroll down to go back in time.</p>
     </header>
 
-    <ol class="timeline">
-      {projects.map((project) => (
-        <li class="entry">
-          <p class="date">{project.date}</p>
-          <h2>
-            {project.href ? <a href={project.href}>{project.title}</a> : project.title}
-          </h2>
-          <p class="summary">{project.description}</p>
-          <p class="tags">{project.tags.join(' · ')}</p>
-          {project.repo && <a class="repo" href={project.repo} target="_blank" rel="noopener noreferrer">Code on GitHub</a>}
-        </li>
-      ))}
-    </ol>
+    {eras.map(({ era, items }) => (
+      <section class="era" aria-labelledby={`era-${era}`}>
+        <h2 class="era-label" id={`era-${era}`}>{era}</h2>
+        <ol class="timeline">
+          {items.map((project) => (
+            <li class="entry" id={project.slug}>
+              <details class="card">
+                <summary>
+                  <span class="card-text">
+                    <span class="date">
+                      {project.date}
+                      {project.draft && <span class="draft">Draft</span>}
+                    </span>
+                    <span class="title">{project.title}</span>
+                    <span class="summary">{project.summary}</span>
+                    {project.callout && <span class="callout">{project.callout}</span>}
+                  </span>
+                  {project.image && (
+                    <img class="thumb" src={project.image.src} alt={project.image.alt} loading="lazy" />
+                  )}
+                  <span class="toggle" aria-hidden="true"></span>
+                </summary>
+
+                <div class="more">
+                  {project.details?.map((paragraph) => <p>{paragraph}</p>)}
+
+                  {project.gallery && (
+                    <div class="gallery">
+                      {project.gallery.map((photo) => (
+                        <figure>
+                          <img src={photo.src} alt={photo.alt} loading="lazy" />
+                          {photo.caption && <figcaption>{photo.caption}</figcaption>}
+                        </figure>
+                      ))}
+                    </div>
+                  )}
+
+                  {project.audio?.map((clip) => (
+                    <figure class="clip">
+                      <figcaption>{clip.label}</figcaption>
+                      <audio controls preload="none" src={clip.src}></audio>
+                    </figure>
+                  ))}
+
+                  {project.excerpt && (
+                    <figure class="excerpt">
+                      <blockquote lang={project.excerpt.lang}>{project.excerpt.text}</blockquote>
+                      <figcaption>{project.excerpt.caption}</figcaption>
+                    </figure>
+                  )}
+
+                  {(project.links?.length || project.tags?.length) && (
+                    <div class="foot">
+                      {project.links?.map((link) => <a href={link.href}>{link.label} →</a>)}
+                      {project.tags && <span class="tags">{project.tags.join(' · ')}</span>}
+                    </div>
+                  )}
+                </div>
+              </details>
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))}
   </main>
 </Layout>
 
 <style>
+  :root {
+    /* Lets the open/close animation run to height: auto where browsers support it. */
+    interpolate-size: allow-keywords;
+  }
+
   .projects {
-    width: min(100%, 40rem);
+    width: min(100%, 42rem);
     margin: 0 auto;
-    padding: 6rem 1.25rem 5rem;
+    padding: 6rem 1.25rem 6rem;
   }
 
   header h1 {
@@ -53,84 +117,287 @@ const description = 'A timeline of the things Caleb Haymore has built.';
     font-size: 0.95rem;
   }
 
+  .era {
+    margin-top: 3rem;
+  }
+
+  .era-label {
+    margin: 0 0 1rem;
+    color: #a3a3a3;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   /* The vertical line is the list's left border; each entry's dot sits on it. */
   .timeline {
     list-style: none;
-    margin: 2.75rem 0 0;
-    padding: 0 0 0 1.6rem;
-    border-left: 1px solid #e3e3e3;
+    margin: 0;
+    padding: 0 0 0 1.4rem;
+    border-left: 1px solid #e6e6e6;
   }
 
   .entry {
     position: relative;
-    padding-bottom: 2.6rem;
-  }
-
-  .entry:last-child {
-    padding-bottom: 0;
+    padding-bottom: 1rem;
+    scroll-margin-top: 4rem;
   }
 
   .entry::before {
     content: '';
     position: absolute;
-    top: 0.3rem;
-    left: calc(-1.6rem - 4.5px);
-    width: 8px;
-    height: 8px;
+    top: 1.35rem;
+    left: calc(-1.4rem - 4px);
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: #111;
+    background: #c4c4c4;
     box-shadow: 0 0 0 4px #fff;
+    transition: background 0.2s;
+  }
+
+  .entry:has(.card[open])::before,
+  .entry:hover::before {
+    background: #111;
+  }
+
+  .card {
+    border: 1px solid #eee;
+    border-radius: 16px;
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover,
+  .card[open] {
+    border-color: #e2e2e2;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  }
+
+  .card::details-content {
+    height: 0;
+    overflow: clip;
+    transition: height 0.3s ease, content-visibility 0.3s allow-discrete;
+  }
+
+  .card[open]::details-content {
+    height: auto;
+  }
+
+  summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    list-style: none;
+    cursor: pointer;
+    border-radius: 16px;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:focus-visible {
+    outline: 2px solid #111;
+    outline-offset: 2px;
+  }
+
+  .card-text {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.2rem;
   }
 
   .date {
-    margin: 0;
-    color: #8a8a8a;
+    color: #9a9a9a;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  h2 {
-    margin: 0.3rem 0 0;
+  .draft {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.35rem;
+    border: 1px dashed #c4c4c4;
+    border-radius: 4px;
+  }
+
+  .title {
     color: #111;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
   }
 
-  h2 a {
-    color: inherit;
+  .summary {
+    color: #6d6d6d;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .callout {
+    align-self: flex-start;
+    margin-top: 0.4rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #f3f3f3;
+    color: #333;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  /* Photos stay quiet and gray until the card is opened. */
+  .thumb {
+    flex: none;
+    width: 4.75rem;
+    height: 4.75rem;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #f3f3f3;
+    filter: grayscale(1);
+    opacity: 0.85;
+    transition: filter 0.3s, opacity 0.3s;
+  }
+
+  .card:hover .thumb,
+  .card[open] .thumb {
+    filter: none;
+    opacity: 1;
+  }
+
+  .toggle {
+    flex: none;
+    position: relative;
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-top: 0.3rem;
+  }
+
+  .toggle::before,
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    background: #b0b0b0;
+    transition: transform 0.25s;
+  }
+
+  .toggle::after {
+    transform: rotate(90deg);
+  }
+
+  .card[open] .toggle::after {
+    transform: rotate(0deg);
+  }
+
+  .more {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 0 1.1rem 1.2rem;
+    color: #4a4a4a;
+    font-size: 0.93rem;
+    line-height: 1.65;
+  }
+
+  .more p {
+    margin: 0;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.6rem;
+  }
+
+  figure {
+    margin: 0;
+  }
+
+  .gallery img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #f3f3f3;
+  }
+
+  figcaption {
+    margin-top: 0.35rem;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+  }
+
+  .clip figcaption {
+    margin: 0 0 0.35rem;
+  }
+
+  .clip audio {
+    width: 100%;
+    height: 2.5rem;
+  }
+
+  .excerpt blockquote {
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    background: #f6f6f6;
+    color: #333;
+    white-space: pre-wrap;
+  }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.1rem;
+    padding-top: 0.2rem;
+    font-size: 0.85rem;
+  }
+
+  .foot a {
+    color: #111;
     text-decoration: underline;
     text-decoration-color: #cfcfcf;
     text-underline-offset: 3px;
   }
 
-  h2 a:hover,
-  h2 a:focus-visible {
+  .foot a:hover {
     text-decoration-color: #111;
   }
 
-  .summary {
-    margin: 0.5rem 0 0;
-    color: #4a4a4a;
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
-
   .tags {
-    margin: 0.6rem 0 0;
     color: #9a9a9a;
     font-size: 0.8rem;
   }
 
-  .repo {
-    display: inline-block;
-    margin-top: 0.5rem;
-    color: #8d8d8d;
-    font-size: 0.82rem;
+  @media (max-width: 520px) {
+    .thumb {
+      width: 3.75rem;
+      height: 3.75rem;
+    }
   }
 
-  .repo:hover {
-    color: #111;
+  @media (prefers-reduced-motion: reduce) {
+    .card::details-content,
+    .thumb,
+    .toggle::after {
+      transition: none;
+    }
   }
 </style>
+
+<script>
+  // Opening a link like /projects#marriott-case expands that card.
+  const target = location.hash && document.getElementById(location.hash.slice(1));
+  target?.querySelector('details')?.setAttribute('open', '');
+</script>
