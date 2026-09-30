@@ -14,7 +14,8 @@ Set `PUBLIC_PORTRAIT_API_URL` to the deployed Worker URL to enable **Ask Caleb**
 ## Portrait Q&A architecture
 
 - The private Knowledge Wiki remains in Google Drive; the service account only sees the curated `Public Portrait Context` folder.
-- Only files whose frontmatter contains `portrait_access: public` are synchronized.
+- Wiki pages are synchronized unless marked `portrait_access: private` (`people/` and `sources/` folders are opt-in). Always-on facts live in `portrait-worker/src/persona.ts`.
+- Visitor questions and answers are saved to D1 and viewable at the Worker's `/admin/inbox`.
 - `.private` and `.obsidian` folders are never traversed.
 - A scheduled GitHub Action reads approved files and replaces the searchable Cloudflare D1 snapshot.
 - Visitors query the D1 snapshot through a Cloudflare Worker. Google Drive is never queried at request time.

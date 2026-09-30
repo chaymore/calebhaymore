@@ -24,7 +24,7 @@ npm run deploy
 
 Use separate long random values for `SYNC_TOKEN` and `RATE_LIMIT_SALT`. Save the deployed `https://…workers.dev` URL.
 
-The default text model is `openai/gpt-4o-mini`. Speech stays on `microsoft/mai-voice-2-flash` with `en-US-Harper:MAI-Voice-2` until a reference clip or Fish voice id is configured. Harper is synthetic, and the chat note says “AI-generated voice.” With a reference configured, `/speak` uses Fish Audio through OpenRouter (`fish-audio/s2.1-pro-free:free` by default; `fish-audio/s2.1-pro` when `FISH_TTS_MODEL` is set to that slug) and the note says “AI voice clone.” See [VOICE-CLONE.md](VOICE-CLONE.md) for the 20–45 second clip, the R2 object, and the `FISH_REFERENCE_ID` secret. `TTS_MODEL` and `TTS_VOICE` in `wrangler.jsonc` still select the Harper fallback.
+The text model is `anthropic/claude-sonnet-4.5` (`OPENROUTER_MODEL` in `wrangler.jsonc`), with `openai/gpt-4o-mini` as an automatic fallback (`OPENROUTER_FALLBACK_MODEL`). Change either slug to any model listed on OpenRouter. Speech stays on `microsoft/mai-voice-2-flash` with `en-US-Harper:MAI-Voice-2` until a reference clip or Fish voice id is configured. Harper is synthetic, and the chat note says “AI-generated voice.” With a reference configured, `/speak` uses Fish Audio through OpenRouter (`fish-audio/s2.1-pro-free:free` by default; `fish-audio/s2.1-pro` when `FISH_TTS_MODEL` is set to that slug) and the note says “AI voice clone.” See [VOICE-CLONE.md](VOICE-CLONE.md) for the 20–45 second clip, the R2 object, and the `FISH_REFERENCE_ID` secret. `TTS_MODEL` and `TTS_VOICE` in `wrangler.jsonc` still select the Harper fallback.
 
 ## 2. Enable the homepage
 
@@ -56,26 +56,38 @@ Add these GitHub Actions secrets:
 
 Run **Sync portrait context** manually once. It also runs nightly at 08:17 UTC. Check `GET /health`; a positive `chunks` count confirms that searchable context exists.
 
-## 4. Approve wiki content
+## 4. Control which wiki content is shared
 
-Pages are private unless explicitly approved. Add this frontmatter to a page that is safe to expose through a public chatbot:
+Everything in the shared Drive folder is synced **unless you exclude it**:
 
 ```yaml
 ---
-portrait_access: public
-portrait_priority: 70
+portrait_access: private   # keep this page out of the chatbot
+portrait_priority: 70      # optional: higher wins when nothing matches the question
 ---
 ```
 
-`portrait_priority` is optional. Summary/profile material can use a higher number so it wins fallback retrieval. The sync divides approved pages by Markdown headings and removes Obsidian link syntax. A sync with zero approved pages fails without deleting the live database.
+- Pages under `people/` or `sources/` folders are skipped unless the page says `portrait_access: public`.
+- Folders named `raw`, `.private`, and `.obsidian` are never read.
+- Sections titled Related, Open questions, and Privacy notes are dropped.
+- The sync divides pages by Markdown headings and removes Obsidian link syntax. A sync with zero shareable pages fails without deleting the live database.
 
-A curated `Public Portrait Context/portrait-profile` source already exists in the Drive wiki. Expand that page first. Avoid marking relationship pages, source-message exports, contact information, financial pages, calendars, or raw ingestion notes public.
+Only the Drive folder you share with the service account is ever visible. Keep raw message exports, contact details, financial pages, and calendars out of that folder (or mark them `private`).
+
+## 5. Always-on facts (`portrait-worker/src/persona.ts`)
+
+Family, hobbies, favorite books and movies, and recent activity live in `persona.ts` and are included in **every** answer, so they don't depend on wiki search. Edit it, commit, and run `npm run deploy` in `portrait-worker/`. The repository is public, so only put things there you're happy for anyone to read. The personality and the rules for improvising live in `portrait-worker/src/prompt.ts`.
+
+## 6. Review visitor questions
+
+Every question and answer is saved to D1 (no IP address stored). After deploying, run `npm run db:init:remote` once to create the table, then open `https://<your-worker>.workers.dev/admin/inbox` and enter the `SYNC_TOKEN`. Amber tags mark likely gaps: **admitted a gap** (the answer sounded unsure) and **no wiki match** (the wiki search found nothing, which is normal for questions `persona.ts` already covers). Add what's missing to `persona.ts` or the wiki. The raw data is at `GET /admin/questions` with `Authorization: Bearer <SYNC_TOKEN>`.
 
 ## API behavior
 
-- `POST /ask` accepts a question and up to four recent messages, retrieves up to eight D1 chunks, and streams plain text.
+- `POST /ask` accepts a question and up to four recent messages, retrieves up to twelve D1 chunks, and streams plain text.
 - `POST /speak` converts the completed answer into MP3. Without a voice reference it uses the Harper fallback; with one, it uses the Fish clone and sets `x-portrait-voice`. See [VOICE-CLONE.md](VOICE-CLONE.md).
 - Spoken questions are transcribed in the browser with the Web Speech API. The transcript is shown as the visitor message and then sent to the existing `/ask` and `/speak` routes. No speech-to-text secret or Worker route is required. Mouth animation is driven only by the reply MP3.
+- `GET /admin/inbox` and `GET /admin/questions` show saved questions (token required for the data).
 - `POST /admin/sync` replaces the D1 snapshot and requires the sync bearer token.
 - `GET /health` reports the indexed chunk count but no private content.
 - Requests are CORS-restricted to the configured site and locally hashed/rate-limited without retaining raw IP addresses.

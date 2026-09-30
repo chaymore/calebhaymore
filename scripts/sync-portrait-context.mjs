@@ -9,6 +9,13 @@ if (!rootFolderId || !syncUrl || !syncToken || !credentials.client_email || !cre
   throw new Error('Missing DRIVE_WIKI_FOLDER_ID, PORTRAIT_SYNC_URL, PORTRAIT_SYNC_TOKEN, or GOOGLE_SERVICE_ACCOUNT_JSON.');
 }
 
+// Pages are shared with the portrait by default. To keep one out, put `portrait_access: private` in its frontmatter.
+// These folders are skipped unless a page inside opts in with `portrait_access: public`:
+//   people/ and sources/ hold notes about other people and raw message-derived material.
+// raw/, .private/, and .obsidian/ are never read at all.
+const ALWAYS_SKIPPED_FOLDERS = new Set(['raw', '.private', '.obsidian']);
+const OPT_IN_FOLDERS = new Set(['people', 'sources']);
+
 const accessToken = await googleAccessToken(credentials);
 const files = await walkFolder(rootFolderId, '', accessToken);
 const publicFiles = [];
@@ -17,12 +24,12 @@ for (const file of files) {
   if (!isReadable(file)) continue;
   const content = await readFile(file, accessToken);
   const { data, body } = frontmatter(content);
-  if (data.portrait_access !== 'public') continue;
+  if (!isShareable(file.path, data)) continue;
   publicFiles.push({ ...file, body, priority: Number(data.portrait_priority) || 50 });
 }
 
 const chunks = publicFiles.flatMap(chunkFile);
-if (!chunks.length) throw new Error('No pages marked `portrait_access: public` were found. Sync stopped without changing production data.');
+if (!chunks.length) throw new Error('No shareable wiki pages were found. Sync stopped without changing production data.');
 
 const response = await fetch(new URL('/admin/sync', syncUrl), {
   method: 'POST',
@@ -30,7 +37,7 @@ const response = await fetch(new URL('/admin/sync', syncUrl), {
   body: JSON.stringify({ chunks }),
 });
 if (!response.ok) throw new Error(`Portrait sync failed (${response.status}): ${await response.text()}`);
-console.log(`Synced ${chunks.length} chunks from ${publicFiles.length} explicitly public wiki pages.`);
+console.log(`Synced ${chunks.length} chunks from ${publicFiles.length} shareable wiki pages.`);
 
 async function googleAccessToken(serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
@@ -70,13 +77,21 @@ async function walkFolder(folderId, path, token) {
     for (const file of data.files || []) {
       const filePath = path ? `${path}/${file.name}` : file.name;
       if (file.mimeType === 'application/vnd.google-apps.folder') {
-        if (file.name === '.private' || file.name === '.obsidian') continue;
+        if (ALWAYS_SKIPPED_FOLDERS.has(file.name)) continue;
         collected.push(...await walkFolder(file.id, filePath, token));
       } else collected.push({ ...file, path: filePath });
     }
     pageToken = data.nextPageToken || '';
   } while (pageToken);
   return collected;
+}
+
+function isShareable(path, data) {
+  const access = (data.portrait_access || '').toLowerCase();
+  if (access === 'private') return false;
+  if (access === 'public') return true;
+  const folders = path.split('/').slice(0, -1).map(name => name.toLowerCase());
+  return !folders.some(name => OPT_IN_FOLDERS.has(name));
 }
 
 function isReadable(file) {
