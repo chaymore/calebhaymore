@@ -39,15 +39,20 @@ export const projects: Project[] = [
     tags: ['Three.js', 'WebGL', 'Cloudflare Workers', 'Text-to-speech'],
   },
   {
-    // TODO: Caleb is sending a summary.
-    slug: 'mac-productivity',
-    title: 'Mac productivity tool',
+    slug: 'nightlock',
+    title: 'NightLock',
     era: '2026',
-    date: '2026',
-    summary: 'A productivity tool I built for my Mac.',
-    draft: true,
+    date: 'Sep 2026',
+    summary: 'A Mac website blocker I can’t talk myself out of.',
+    details: [
+      'NightLock is a native macOS app that limits the sites that eat my time. Instagram gets one 30-minute window a day. X is open during work hours, gets 10 minutes in the evening, and is blocked overnight. Everything else on the list stays blocked.',
+      'A system-level background service enforces the rules, so quitting the app changes nothing. There is no quit button and no snooze, and changing the schedule takes a recovery key that is deliberately hard to reach.',
+    ],
+    // TODO: screenshot of the menu bar shield or the block page.
+    tags: ['Swift', 'macOS', 'Menu bar app'],
   },
   {
+    // TODO: confirm Caleb wants this entry, and its date.
     slug: 'work-journal',
     title: 'Automated work journal',
     era: '2026',
@@ -58,27 +63,34 @@ export const projects: Project[] = [
       'It replaced 15–20 minutes of manual reflection a day.',
     ],
     tags: ['Claude', 'Scheduled tasks', 'Notion', 'Granola'],
-  },
-  {
-    // TODO: date, functionality, and a photo of the original fuzzy orange Milo.
-    slug: 'milo',
-    title: 'Milo',
-    era: '2026',
-    date: '2026',
-    summary: 'A fuzzy orange AI companion.',
     draft: true,
   },
   {
-    // TODO: date and a screenshot of a scripture showing after a highlight.
-    slug: 'scripture-extension',
-    title: 'Scripture lookup extension',
+    slug: 'milo',
+    title: 'Milo',
     era: '2026',
-    date: '2026',
-    summary: 'My first project with Claude Code: highlight a scripture reference and the verse appears.',
+    date: 'Apr 2026',
+    summary: 'A desktop buddy that floats over everything on my Mac.',
     details: [
-      'A Chrome extension. Highlight a reference like “John 3:16” on any web page and the full verse shows up right there.',
-      'It was the first thing I built with Claude Code, and the moment I realized I could make my own software.',
+      'Milo is a small animated character who lives on top of every window and every desktop. You can drag him anywhere, his eyes blink and follow your cursor, and a double-click opens a chat drawer where he answers with AI.',
+      'Option+B hides or shows him. He also has a bedtime mode that sends YouTube, X, Reddit, and Facebook to a funny block page between 11 PM and 6 AM.',
     ],
+    // TODO: photo of the original fuzzy orange Milo at /projects/milo/milo.png.
+    tags: ['Swift', 'macOS', 'AI chat'],
+    draft: true,
+  },
+  {
+    slug: 'scripture-extension',
+    title: 'Scripture Highlighter',
+    era: '2026',
+    date: 'Mar 2026',
+    summary: 'My first project with Claude Code: scripture references on any web page turn into verses.',
+    details: [
+      'A Chrome extension that finds scripture references on any web page, like “John 3:16” or “1 Cor 15”, and shows the verse in a small card when you hover over it.',
+      'It understands hundreds of abbreviations, switches between the King James and World English translations, and steps to the previous or next verse. The whole Bible ships inside the extension, so it works offline.',
+      'It was the first thing I built with Claude Code.',
+    ],
+    // TODO: screenshot of a verse card at /projects/scripture-extension/card.png.
     tags: ['Chrome extension', 'JavaScript', 'Claude Code'],
     draft: true,
   },
@@ -98,15 +110,22 @@ export const projects: Project[] = [
     tags: ['Strategy', 'Financial modeling', 'Presenting'],
   },
   {
-    // TODO: mission dates, 1–2 photos in Taiwan, an early voice clip, and a late clip or essay.
+    // TODO: 1–2 photos in Taiwan, and the audio clips (see audio below).
     slug: 'chinese',
     title: 'Learning Chinese',
     era: 'Taiwan',
-    date: 'Mission',
-    summary: 'I learned Mandarin from zero as a missionary in Taiwan.',
+    date: '2022–2024',
+    summary: 'Two years speaking Mandarin every day as a missionary in Taichung, Taiwan.',
     details: [
-      'Here is the progress in my own voice: a recording from my first weeks, and one from near the end.',
+      'Here is the progress in my own voice and my own writing: a recording from my second week in Taiwan, and an essay I wrote in Chinese at the end of the two years.',
     ],
+    // audio: [{ src: '/projects/chinese/week-2.mp3', label: 'Week 2 in Taiwan' }],
+    excerpt: {
+      lang: 'zh-Hant',
+      text: '我最大的改變\n更有自信\n比較會管理和有效的利用時間\n我更能夠去愛身邊的人\n更快樂\n\n這些祝福和改變不是因傳教而來的，而是因為我在這兩年有盡力奉行耶穌基督的福音。',
+      caption:
+        'From “傳教的心得” (What I learned as a missionary), written at the end of my mission. My biggest changes: more confident, better with my time, better at loving the people around me, and happier. These blessings didn’t come from the mission itself, but from two years of doing my best to live the gospel of Jesus Christ.',
+    },
     tags: ['Mandarin', 'Taiwan'],
     draft: true,
   },
