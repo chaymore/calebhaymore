@@ -74,6 +74,7 @@ export const projects: Project[] = [
     details: [
       'Milo is a small animated character who lives on top of every window and every desktop. You can drag him anywhere, his eyes blink and follow your cursor, and a double-click opens a chat drawer where he answers with AI.',
       'Option+B hides or shows him. He also has a bedtime mode that sends YouTube, X, Reddit, and Facebook to a funny block page between 11 PM and 6 AM.',
+      'Milo was my own idea from the start. He began as a fuzzy orange character and later became the simpler black-and-white design he has today.',
     ],
     // TODO: photo of the original fuzzy orange Milo at /projects/milo/milo.png.
     tags: ['Swift', 'macOS', 'AI chat'],
@@ -97,14 +98,14 @@ export const projects: Project[] = [
   {
     slug: 'marriott-case',
     title: 'BYU Marriott Case Competition',
-    era: '2024',
-    date: 'Fall 2024',
-    summary: 'Won first place with a growth strategy for Skullcandy.',
+    era: '2025',
+    date: 'Fall 2025',
+    summary: 'Won first place with a go-to-market strategy for Adminify, an AI-powered CRM startup.',
     callout: '$5,000 prize',
     details: [
-      'The case: grow Skullcandy beyond its core 12–24-year-old board-sports buyers without losing the loyalty of the fans it already had.',
-      'Our answer was to turn the brand into a community. We pushed Skullcandy into Bluetooth speakers and gaming, widened its target demographics, and paired that with limited-edition drops, athlete and brand sponsorships, and quarterly live Sound Sessions. A pro forma P&L and balance sheet backed the plan, with a forecast of about $605M in revenue.',
-      'Team: Caleb Haymore, Brayden Hancock, Avery Porter, Nathaniel Hatch, and Ian Hua.',
+      'The case: Adminify had won over 1,000 small businesses since 2022, but its bigger opportunity was multi-location enterprise customers, who were worth about 2.5 times as much over their lifetime.',
+      'Our answer was to partner with Housecall Pro to take over Adminify’s small-business customers with guaranteed continued service, freeing Adminify to go after enterprise clients. We backed it with a revenue-sharing model, a refreshed brand and product roadmap, a new LTV-to-CAC model (8.4 to 1), an enterprise platform fee to meet the Rule of 40, and new KPIs for tracking rollouts.',
+      'Team: Luke Stacey, Dallin Christensen, Peter Hyde, Caleb Haymore, and Josh Christensen.',
     ],
     // TODO: team photo at /projects/marriott-case/team.jpg, deck at /projects/marriott-case/deck.pdf.
     tags: ['Strategy', 'Financial modeling', 'Presenting'],
@@ -113,7 +114,7 @@ export const projects: Project[] = [
     // TODO: 1–2 photos in Taiwan, and the audio clips (see audio below).
     slug: 'chinese',
     title: 'Learning Chinese',
-    era: 'Taiwan',
+    era: '2022',
     date: '2022–2024',
     summary: 'Two years speaking Mandarin every day as a missionary in Taichung, Taiwan.',
     details: [

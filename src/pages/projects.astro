@@ -5,13 +5,15 @@ import { visibleProjects, type Project } from '../data/projects';
 
 const description = 'A timeline of the things Caleb Haymore has built, newest first.';
 
-// Group consecutive projects under one marker per era (a year, or a place).
-const eras: { era: string; items: Project[] }[] = [];
-for (const project of visibleProjects) {
+// Group consecutive projects under one marker per era. `side` alternates
+// across the whole timeline, not per era, so cards zigzag without a break.
+const eras: { era: string; items: (Project & { side: 'left' | 'right' })[] }[] = [];
+visibleProjects.forEach((project, index) => {
+  const item = { ...project, side: index % 2 === 0 ? 'left' : 'right' } as const;
   const last = eras.at(-1);
-  if (last?.era === project.era) last.items.push(project);
-  else eras.push({ era: project.era, items: [project] });
-}
+  if (last?.era === project.era) last.items.push(item);
+  else eras.push({ era: project.era, items: [item] });
+});
 ---
 
 <Layout minimal bodyClass="plain" title="Caleb Haymore | Projects" description={description}>
@@ -24,70 +26,70 @@ for (const project of visibleProjects) {
       <p>Things I’ve built, newest first. Scroll down to go back in time.</p>
     </header>
 
-    {eras.map(({ era, items }) => (
-      <section class="era" aria-labelledby={`era-${era}`}>
-        <h2 class="era-label" id={`era-${era}`}>{era}</h2>
-        <ol class="timeline">
-          {items.map((project) => (
-            <li class="entry" id={project.slug}>
-              <details class="card">
-                <summary>
-                  <span class="card-text">
-                    <span class="date">
-                      {project.date}
+    <div class="timeline">
+      {eras.map(({ era, items }) => (
+        <section class="era" aria-labelledby={`era-${era}`}>
+          <h2 class="era-label" id={`era-${era}`}><span>{era}</span></h2>
+          <ol class="entries">
+            {items.map((project) => (
+              <li class:list={['entry', project.side]} id={project.slug}>
+                <p class="date-mark"><span>{project.date}</span></p>
+                <details class="card">
+                  <summary>
+                    <span class="card-text">
                       {project.draft && <span class="draft">Draft</span>}
+                      <span class="title">{project.title}</span>
+                      <span class="summary">{project.summary}</span>
+                      {project.callout && <span class="callout">{project.callout}</span>}
                     </span>
-                    <span class="title">{project.title}</span>
-                    <span class="summary">{project.summary}</span>
-                    {project.callout && <span class="callout">{project.callout}</span>}
-                  </span>
-                  {project.image && (
-                    <img class="thumb" src={project.image.src} alt={project.image.alt} loading="lazy" />
-                  )}
-                  <span class="toggle" aria-hidden="true"></span>
-                </summary>
+                    {project.image && (
+                      <img class="thumb" src={project.image.src} alt={project.image.alt} loading="lazy" />
+                    )}
+                    <span class="toggle" aria-hidden="true"></span>
+                  </summary>
 
-                <div class="more">
-                  {project.details?.map((paragraph) => <p>{paragraph}</p>)}
+                  <div class="more">
+                    {project.details?.map((paragraph) => <p>{paragraph}</p>)}
 
-                  {project.gallery && (
-                    <div class="gallery">
-                      {project.gallery.map((photo) => (
-                        <figure>
-                          <img src={photo.src} alt={photo.alt} loading="lazy" />
-                          {photo.caption && <figcaption>{photo.caption}</figcaption>}
-                        </figure>
-                      ))}
-                    </div>
-                  )}
+                    {project.gallery && (
+                      <div class="gallery">
+                        {project.gallery.map((photo) => (
+                          <figure>
+                            <img src={photo.src} alt={photo.alt} loading="lazy" />
+                            {photo.caption && <figcaption>{photo.caption}</figcaption>}
+                          </figure>
+                        ))}
+                      </div>
+                    )}
 
-                  {project.audio?.map((clip) => (
-                    <figure class="clip">
-                      <figcaption>{clip.label}</figcaption>
-                      <audio controls preload="none" src={clip.src}></audio>
-                    </figure>
-                  ))}
+                    {project.audio?.map((clip) => (
+                      <figure class="clip">
+                        <figcaption>{clip.label}</figcaption>
+                        <audio controls preload="none" src={clip.src}></audio>
+                      </figure>
+                    ))}
 
-                  {project.excerpt && (
-                    <figure class="excerpt">
-                      <blockquote lang={project.excerpt.lang}>{project.excerpt.text}</blockquote>
-                      <figcaption>{project.excerpt.caption}</figcaption>
-                    </figure>
-                  )}
+                    {project.excerpt && (
+                      <figure class="excerpt">
+                        <blockquote lang={project.excerpt.lang}>{project.excerpt.text}</blockquote>
+                        <figcaption>{project.excerpt.caption}</figcaption>
+                      </figure>
+                    )}
 
-                  {(project.links?.length || project.tags?.length) && (
-                    <div class="foot">
-                      {project.links?.map((link) => <a href={link.href}>{link.label} →</a>)}
-                      {project.tags && <span class="tags">{project.tags.join(' · ')}</span>}
-                    </div>
-                  )}
-                </div>
-              </details>
-            </li>
-          ))}
-        </ol>
-      </section>
-    ))}
+                    {(project.links?.length || project.tags?.length) && (
+                      <div class="foot">
+                        {project.links?.map((link) => <a href={link.href}>{link.label} →</a>)}
+                        {project.tags && <span class="tags">{project.tags.join(' · ')}</span>}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
   </main>
 </Layout>
 
@@ -98,9 +100,14 @@ for (const project of visibleProjects) {
   }
 
   .projects {
-    width: min(100%, 42rem);
+    --gutter: 7.5rem;
+    width: min(100%, 66rem);
     margin: 0 auto;
     padding: 6rem 1.25rem 6rem;
+  }
+
+  header {
+    text-align: center;
   }
 
   header h1 {
@@ -117,50 +124,89 @@ for (const project of visibleProjects) {
     font-size: 0.95rem;
   }
 
-  .era {
+  /* One continuous line down the middle. Labels sit on it with a white
+     background, which is what makes the years and dates break the line. */
+  .timeline {
+    position: relative;
     margin-top: 3rem;
+    padding-bottom: 2rem;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: #e3e3e3;
   }
 
   .era-label {
-    margin: 0 0 1rem;
-    color: #a3a3a3;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    position: relative;
+    margin: 0;
+    padding: 1.5rem 0 1.25rem;
+    text-align: center;
   }
 
-  /* The vertical line is the list's left border; each entry's dot sits on it. */
-  .timeline {
+  .era-label span {
+    display: inline-block;
+    padding: 0.5rem 0;
+    background: #fff;
+    color: #111;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .entries {
     list-style: none;
     margin: 0;
-    padding: 0 0 0 1.4rem;
-    border-left: 1px solid #e6e6e6;
+    padding: 0;
   }
 
   .entry {
     position: relative;
-    padding-bottom: 1rem;
+    display: grid;
+    grid-template-columns: 1fr var(--gutter) 1fr;
+    align-items: start;
+    padding-bottom: 1.75rem;
     scroll-margin-top: 4rem;
   }
 
-  .entry::before {
-    content: '';
-    position: absolute;
-    top: 1.35rem;
-    left: calc(-1.4rem - 4px);
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #c4c4c4;
-    box-shadow: 0 0 0 4px #fff;
-    transition: background 0.2s;
+  .date-mark {
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: center;
+    margin: 1rem 0 0;
   }
 
-  .entry:has(.card[open])::before,
-  .entry:hover::before {
-    background: #111;
+  .date-mark span {
+    display: inline-block;
+    padding: 0.35rem 0;
+    background: #fff;
+    color: #9a9a9a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+
+  .entry:hover .date-mark span,
+  .entry:has(.card[open]) .date-mark span {
+    color: #111;
+  }
+
+  .entry.left .card {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .entry.right .card {
+    grid-row: 1;
+    grid-column: 3;
   }
 
   .card {
@@ -213,19 +259,16 @@ for (const project of visibleProjects) {
     gap: 0.2rem;
   }
 
-  .date {
-    color: #9a9a9a;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
   .draft {
-    margin-left: 0.5rem;
+    align-self: flex-start;
+    margin-bottom: 0.2rem;
     padding: 0.05rem 0.35rem;
     border: 1px dashed #c4c4c4;
     border-radius: 4px;
+    color: #9a9a9a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
   }
 
   .title {
@@ -251,7 +294,7 @@ for (const project of visibleProjects) {
     font-weight: 600;
   }
 
-  /* Photos stay quiet and gray until the card is opened. */
+  /* Photos stay quiet and gray until the card is hovered or opened. */
   .thumb {
     flex: none;
     width: 4.75rem;
@@ -314,7 +357,7 @@ for (const project of visibleProjects) {
 
   .gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: 0.6rem;
   }
 
@@ -380,7 +423,38 @@ for (const project of visibleProjects) {
     font-size: 0.8rem;
   }
 
-  @media (max-width: 520px) {
+  /* Phones: not enough room for two columns, so the line moves to the left
+     edge and every card sits to its right, with its date above it. */
+  @media (max-width: 760px) {
+    .timeline::before {
+      left: 0.35rem;
+    }
+
+    .era-label {
+      text-align: left;
+    }
+
+    .entries {
+      padding-left: 1.4rem;
+    }
+
+    .entry {
+      grid-template-columns: 1fr;
+      padding-bottom: 1.25rem;
+    }
+
+    .date-mark {
+      grid-column: 1;
+      justify-self: start;
+      margin: 0 0 0.35rem;
+    }
+
+    .entry.left .card,
+    .entry.right .card {
+      grid-row: 2;
+      grid-column: 1;
+    }
+
     .thumb {
       width: 3.75rem;
       height: 3.75rem;
