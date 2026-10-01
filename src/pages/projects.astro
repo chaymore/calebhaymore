@@ -43,12 +43,16 @@ visibleProjects.forEach((project, index) => {
                       {project.callout && <span class="callout">{project.callout}</span>}
                     </span>
                     {project.image && (
-                      <img class="thumb" src={project.image.src} alt={project.image.alt} loading="lazy" />
+                      <img class="thumb" src={project.image.src} alt="" loading="lazy" />
                     )}
                     <span class="toggle" aria-hidden="true"></span>
                   </summary>
 
                   <div class="more">
+                    {project.image && (
+                      <img class="hero" src={project.image.src} alt={project.image.alt} loading="lazy" />
+                    )}
+
                     {project.details?.map((paragraph) => <p>{paragraph}</p>)}
 
                     {project.gallery && (
@@ -353,6 +357,17 @@ visibleProjects.forEach((project, index) => {
 
   .more p {
     margin: 0;
+  }
+
+  /* The full photo, shown once the card is open. */
+  .hero {
+    display: block;
+    align-self: flex-start;
+    max-width: 100%;
+    max-height: 24rem;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    object-fit: contain;
   }
 
   .gallery {

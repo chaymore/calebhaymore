@@ -48,7 +48,7 @@ export const projects: Project[] = [
       'NightLock is a native macOS app that limits the sites that eat my time. Instagram gets one 30-minute window a day. X is open during work hours, gets 10 minutes in the evening, and is blocked overnight. Everything else on the list stays blocked.',
       'A system-level background service enforces the rules, so quitting the app changes nothing. There is no quit button and no snooze, and changing the schedule takes a recovery key that is deliberately hard to reach.',
     ],
-    // TODO: screenshot of the menu bar shield or the block page.
+    image: { src: '/projects/nightlock/block-page.png', alt: 'NightLock’s block page: “NightLock is on. x.com is unavailable. Today’s 10-minute allowance has been used.”' },
     tags: ['Swift', 'macOS', 'Menu bar app'],
   },
   {
@@ -74,11 +74,10 @@ export const projects: Project[] = [
     details: [
       'Milo is a small animated character who lives on top of every window and every desktop. You can drag him anywhere, his eyes blink and follow your cursor, and a double-click opens a chat drawer where he answers with AI.',
       'Option+B hides or shows him. He also has a bedtime mode that sends YouTube, X, Reddit, and Facebook to a funny block page between 11 PM and 6 AM.',
-      'Milo was my own idea from the start. He began as a fuzzy orange character and later became the simpler black-and-white design he has today.',
+      'Milo was my own idea from the start. He began as a fuzzy orange character and has since become the simple black-and-white stick figure he is today.',
     ],
-    // TODO: photo of the original fuzzy orange Milo at /projects/milo/milo.png.
+    image: { src: '/projects/milo/milo.png', alt: 'Milo today: a black-and-white stick figure with a small chat bubble' },
     tags: ['Swift', 'macOS', 'AI chat'],
-    draft: true,
   },
   {
     slug: 'scripture-extension',
@@ -91,15 +90,14 @@ export const projects: Project[] = [
       'It understands hundreds of abbreviations, switches between the King James and World English translations, and steps to the previous or next verse. The whole Bible ships inside the extension, so it works offline.',
       'It was the first thing I built with Claude Code.',
     ],
-    // TODO: screenshot of a verse card at /projects/scripture-extension/card.png.
+    image: { src: '/projects/scripture-extension/card.png', alt: 'The extension’s verse card showing Proverbs 3:5–6 in the King James Version, with Prev and Next buttons' },
     tags: ['Chrome extension', 'JavaScript', 'Claude Code'],
-    draft: true,
   },
   {
     slug: 'marriott-case',
     title: 'BYU Marriott Case Competition',
     era: '2025',
-    date: 'Fall 2025',
+    date: 'Oct 2025',
     summary: 'Won first place with a go-to-market strategy for Adminify, an AI-powered CRM startup.',
     callout: '$5,000 prize',
     details: [
@@ -107,7 +105,8 @@ export const projects: Project[] = [
       'Our answer was to partner with Housecall Pro to take over Adminify’s small-business customers with guaranteed continued service, freeing Adminify to go after enterprise clients. We backed it with a revenue-sharing model, a refreshed brand and product roadmap, a new LTV-to-CAC model (8.4 to 1), an enterprise platform fee to meet the Rule of 40, and new KPIs for tracking rollouts.',
       'Team: Luke Stacey, Dallin Christensen, Peter Hyde, Caleb Haymore, and Josh Christensen.',
     ],
-    // TODO: team photo at /projects/marriott-case/team.jpg, deck at /projects/marriott-case/deck.pdf.
+    image: { src: '/projects/marriott-case/team.jpg', alt: 'Caleb and his four teammates holding the $5,000 first-place check from the BYU Marriott Case Competition, October 17, 2025' },
+    // TODO: deck at /projects/marriott-case/deck.pdf.
     tags: ['Strategy', 'Financial modeling', 'Presenting'],
   },
   {
