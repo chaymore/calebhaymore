@@ -24,5 +24,19 @@ CREATE TABLE IF NOT EXISTS request_limits (
   PRIMARY KEY (key, minute)
 );
 
+-- Every visitor question and the portrait's answer, for the private inbox at /admin/inbox.
+-- matched = the wiki search found something; gap = the answer sounded like it lacked information.
+CREATE TABLE IF NOT EXISTS questions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  asked_at TEXT NOT NULL,
+  question TEXT NOT NULL,
+  answer TEXT NOT NULL DEFAULT '',
+  sources TEXT NOT NULL DEFAULT '',
+  matched INTEGER NOT NULL DEFAULT 0,
+  gap INTEGER NOT NULL DEFAULT 0,
+  model TEXT NOT NULL DEFAULT '',
+  latency_ms INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS context_source_idx ON context_chunks(source_id);
 CREATE INDEX IF NOT EXISTS context_priority_idx ON context_chunks(priority DESC);
