@@ -38,8 +38,14 @@ function spring(stiffness: number) {
     x: 0,
     v: 0,
     step(target: number, dt: number) {
-      this.v += (stiffness * (target - this.x) - damping * this.v) * dt;
-      this.x += this.v * dt;
+      // Stiff springs blow up when a slow frame makes dt large, so split long
+      // frames into substeps of at most 1/120 s.
+      const n = Math.max(1, Math.ceil(dt * 120));
+      const h = dt / n;
+      for (let i = 0; i < n; i++) {
+        this.v += (stiffness * (target - this.x) - damping * this.v) * h;
+        this.x += this.v * h;
+      }
       return this.x;
     },
   };

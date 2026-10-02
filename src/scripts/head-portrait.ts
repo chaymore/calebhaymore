@@ -24,7 +24,7 @@ export async function initHeadPortrait(root: HTMLElement) {
   const face = createFaceMotion();
   let playing = !reducedMotion.matches, dragging = false, attention = false;
   let previousX = 0, previousY = 0, frame = 0;
-  let pointerX = 0, pointerY = 0, pointerSeen = -Infinity;
+  let clickX = 0, clickY = 0, clickedAt = -Infinity;
   let renderer: THREE.WebGLRenderer | undefined;
   let observer: ResizeObserver | undefined;
   let attentionObserver: MutationObserver | undefined;
@@ -126,17 +126,19 @@ export async function initHeadPortrait(root: HTMLElement) {
     syncAttention();
     attentionObserver=new MutationObserver(syncAttention);
     attentionObserver.observe(root,{attributes:true,attributeFilter:['data-attention']});
-    addEventListener('pointermove',e=>{pointerX=e.clientX;pointerY=e.clientY;pointerSeen=performance.now();},{signal:events.signal,passive:true});
-    // Eye target: the visitor's cursor when it moved recently, otherwise the camera.
+    // Capture phase, so a click still counts when a button or the canvas handles it.
+    addEventListener('pointerdown',e=>{clickX=e.clientX;clickY=e.clientY;clickedAt=performance.now();},{signal:events.signal,passive:true,capture:true});
+    // Eye target: straight ahead, except for a few seconds after a click, when the eyes glance at that point.
     const eyeMid=new THREE.Vector3(.049,.486,.6),eyeWorld=new THREE.Vector3(),target=new THREE.Vector3(),headTurn=new THREE.Quaternion();
     const lookTarget=(now:number,speaking:boolean)=>{
       head.updateWorldMatrix(true,false);
       eyeWorld.copy(eyeMid);head.localToWorld(eyeWorld);
       const rect=canvas.getBoundingClientRect();
-      if(!speaking&&!dragging&&now-pointerSeen<2500&&rect.width&&rect.height){
-        const nx=(pointerX-rect.left)/rect.width,ny=(pointerY-rect.top)/rect.height;
+      if(!speaking&&!dragging&&now-clickedAt<3000&&rect.width&&rect.height){
+        const nx=(clickX-rect.left)/rect.width,ny=(clickY-rect.top)/rect.height;
         target.set(camera.left+(camera.right-camera.left)*nx,camera.top-(camera.top-camera.bottom)*ny,3.2).sub(eyeWorld);
-      }else target.set(0,0,1);
+      }else if(speaking)target.set(0,0,1);
+      else return {x:0,y:0};
       head.getWorldQuaternion(headTurn);
       target.normalize().applyQuaternion(headTurn.invert());
       if(target.z<.45)return null;

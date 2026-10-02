@@ -62,7 +62,8 @@ test('the jaw hinges instead of only dropping the lower lip', () => {
 test('modeled irises follow the gaze and are clipped by the same lids as the stipples', () => {
   assert.match(eyeVertex, /uniform vec2 gaze/);
   assert.match(eyeVertex, /eyeLids\(p\.xy/);
-  assert.match(eyeVertex, /glint/);
+  // No catchlight: the irises are solid stipples.
+  assert.doesNotMatch(eyeVertex, /glint|catch/);
   assert.match(lids, /mix\(upperOpen, lower/);
 });
 
@@ -82,6 +83,15 @@ test('the eyes jump to a look target in saccades and then hold', () => {
   assert.ok(Math.abs(xs.at(-1) - 0.25) < 0.03);
   const far = face.update(1 / 60, { speaking: false, reducedMotion: false, look: { x: 2, y: -2 } });
   assert.ok(Math.abs(far.gazeX) <= 0.46 && Math.abs(far.gazeY) <= 0.31);
+});
+
+test('the eyes stay steady at a low frame rate', () => {
+  const face = createFaceMotion(() => 0.5);
+  let pose;
+  // 20 fps hits the largest step update() allows.
+  for (let i = 0; i < 200; i++) pose = face.update(1 / 20, { speaking: false, reducedMotion: false, look: { x: 0.25, y: 0.05 } });
+  assert.ok(Math.abs(pose.gazeX - 0.25) < 0.03, `gaze settles, got ${pose.gazeX}`);
+  assert.ok(Math.abs(pose.gazeY - 0.05) < 0.03, `gaze settles, got ${pose.gazeY}`);
 });
 
 test('speech rhythm nods the head within a natural range', () => {

@@ -222,11 +222,8 @@ export const eyeVertex = /* glsl */ `
     eyeLids(p.xy, u, y, upper, lower, upperOpen);
     float inside = step(abs(u), .95) * step(lower + .0012, y) * step(y, upper - .0012);
     vec3 nView = normalize(normalMatrix * dir);
-    // A fixed catchlight toward the key light, on the portrait's right eye only (viewer's left).
-    vec3 catchDir = normalize(normalize(vec3(-.35,.55,1.)) + vec3(0.,0.,1.));
-    float glint = left ? step(.989, dot(nView, catchDir)) : 0.;
     float facing = step(.25, nView.z);
-    visible = inside * (1.-glint) * facing * (1.-step(.5, ascii));
+    visible = inside * facing * (1.-step(.5, ascii));
     float rho = length(disk);
     float fiber = .5 + .5*sin(atan(disk.y, disk.x)*19. + seed*6.2831);
     radius = rho < .36 ? .4 : rho > .84 ? .28 : mix(.1, .23, fiber);
