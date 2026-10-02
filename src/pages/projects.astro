@@ -36,23 +36,23 @@ visibleProjects.forEach((project, index) => {
                 <p class="date-mark"><span>{project.date}</span></p>
                 <details class="card">
                   <summary>
-                    <span class="card-text">
-                      {project.draft && <span class="draft">Draft</span>}
-                      <span class="title">{project.title}</span>
-                      <span class="summary">{project.summary}</span>
-                      {project.callout && <span class="callout">{project.callout}</span>}
+                    <span class="card-head">
+                      <span class="card-text">
+                        {project.draft && <span class="draft">Draft</span>}
+                        <span class="title">{project.title}</span>
+                        <span class="summary">{project.summary}</span>
+                        {project.callout && <span class="callout">{project.callout}</span>}
+                      </span>
+                      <span class="toggle" aria-hidden="true"></span>
                     </span>
-                    {project.image && (
-                      <img class="thumb" src={project.image.src} alt="" loading="lazy" />
+                    {project.image ? (
+                      <img class="media" src={project.image.src} alt={project.image.alt} loading="lazy" />
+                    ) : project.excerpt && (
+                      <span class="media media-text" lang={project.excerpt.lang}>{project.excerpt.text}</span>
                     )}
-                    <span class="toggle" aria-hidden="true"></span>
                   </summary>
 
                   <div class="more">
-                    {project.image && (
-                      <img class="hero" src={project.image.src} alt={project.image.alt} loading="lazy" />
-                    )}
-
                     {project.details?.map((paragraph) => <p>{paragraph}</p>)}
 
                     {project.gallery && (
@@ -73,12 +73,14 @@ visibleProjects.forEach((project, index) => {
                       </figure>
                     ))}
 
-                    {project.excerpt && (
+                    {project.excerpt && project.image && (
                       <figure class="excerpt">
                         <blockquote lang={project.excerpt.lang}>{project.excerpt.text}</blockquote>
                         <figcaption>{project.excerpt.caption}</figcaption>
                       </figure>
                     )}
+                    {/* Without a photo, the excerpt is already the card's picture, so only its caption goes here. */}
+                    {project.excerpt && !project.image && <p class="excerpt-note">{project.excerpt.caption}</p>}
 
                     {(project.links?.length || project.tags?.length) && (
                       <div class="foot">
@@ -203,27 +205,56 @@ visibleProjects.forEach((project, index) => {
     color: #111;
   }
 
+  /* Cards hug the center line: left cards sit at the right of their column. */
   .entry.left .card {
     grid-row: 1;
     grid-column: 1;
+    justify-self: end;
   }
 
   .entry.right .card {
     grid-row: 1;
     grid-column: 3;
+    justify-self: start;
   }
 
+  /* Near-square tiles that float gently, like they are hovering over the page. */
   .card {
+    width: min(100%, 21rem);
     border: 1px solid #eee;
-    border-radius: 16px;
+    border-radius: 18px;
     background: #fff;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.03),
+      0 18px 40px -12px rgba(0, 0, 0, 0.12);
+    animation: hover-float 6s ease-in-out infinite;
+    transition: box-shadow 0.25s, border-color 0.25s;
+  }
+
+  .entry:nth-child(2n) .card {
+    animation-delay: -2s;
+  }
+
+  .entry:nth-child(3n) .card {
+    animation-delay: -4s;
   }
 
   .card:hover,
   .card[open] {
-    border-color: #e2e2e2;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    border-color: #e4e4e4;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.04),
+      0 28px 56px -16px rgba(0, 0, 0, 0.18);
+  }
+
+  /* Hold still while someone is reading. */
+  .card[open] {
+    animation-play-state: paused;
+  }
+
+  @keyframes hover-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
   }
 
   .card::details-content {
@@ -236,14 +267,16 @@ visibleProjects.forEach((project, index) => {
     height: auto;
   }
 
+  /* Title and description on top, the picture filling the rest of the square. */
   summary {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem 1.1rem;
+    flex-direction: column;
+    gap: 0.9rem;
+    aspect-ratio: 1;
+    padding: 1.1rem;
     list-style: none;
     cursor: pointer;
-    border-radius: 16px;
+    border-radius: 18px;
   }
 
   summary::-webkit-details-marker {
@@ -253,6 +286,12 @@ visibleProjects.forEach((project, index) => {
   summary:focus-visible {
     outline: 2px solid #111;
     outline-offset: 2px;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
   .card-text {
@@ -298,23 +337,49 @@ visibleProjects.forEach((project, index) => {
     font-weight: 600;
   }
 
-  /* Photos stay quiet and gray until the card is hovered or opened. */
-  .thumb {
-    flex: none;
-    width: 4.75rem;
-    height: 4.75rem;
-    border-radius: 10px;
+  /* The picture fills the bottom of the card. It stays quiet and gray
+     until the card is hovered or opened. */
+  .media {
+    display: block;
+    flex: 1;
+    min-height: 7rem;
+    width: 100%;
+    border-radius: 12px;
     object-fit: cover;
-    background: #f3f3f3;
+    background: #f4f4f4;
     filter: grayscale(1);
-    opacity: 0.85;
+    opacity: 0.88;
     transition: filter 0.3s, opacity 0.3s;
   }
 
-  .card:hover .thumb,
-  .card[open] .thumb {
+  .card:hover .media,
+  .card[open] .media {
     filter: none;
     opacity: 1;
+  }
+
+  /* No photo yet: the excerpt stands in for the picture, fading out at the bottom. */
+  .media-text {
+    overflow: hidden;
+    padding: 0.9rem 1rem;
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    filter: none;
+    opacity: 1;
+    -webkit-mask-image: linear-gradient(#000 65%, transparent);
+    mask-image: linear-gradient(#000 65%, transparent);
+  }
+
+  .card[open] .media-text {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .excerpt-note {
+    color: #8a8a8a;
+    font-size: 0.82rem;
   }
 
   .toggle {
@@ -357,17 +422,6 @@ visibleProjects.forEach((project, index) => {
 
   .more p {
     margin: 0;
-  }
-
-  /* The full photo, shown once the card is open. */
-  .hero {
-    display: block;
-    align-self: flex-start;
-    max-width: 100%;
-    max-height: 24rem;
-    border: 1px solid #eee;
-    border-radius: 10px;
-    object-fit: contain;
   }
 
   .gallery {
@@ -468,17 +522,18 @@ visibleProjects.forEach((project, index) => {
     .entry.right .card {
       grid-row: 2;
       grid-column: 1;
-    }
-
-    .thumb {
-      width: 3.75rem;
-      height: 3.75rem;
+      justify-self: stretch;
+      width: auto;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .card {
+      animation: none;
+    }
+
     .card::details-content,
-    .thumb,
+    .media,
     .toggle::after {
       transition: none;
     }
