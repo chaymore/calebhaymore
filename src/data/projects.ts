@@ -52,20 +52,6 @@ export const projects: Project[] = [
     tags: ['Swift', 'macOS', 'Menu bar app'],
   },
   {
-    // TODO: confirm Caleb wants this entry, and its date.
-    slug: 'work-journal',
-    title: 'Automated work journal',
-    era: '2026',
-    date: '2026',
-    summary: 'A Claude agent that writes my work journal every evening.',
-    details: [
-      'Each night it pulls my Granola meeting transcripts, my Google Calendar, and the Notion pages I touched that day, then writes what I did, what I learned, and tomorrow’s priorities into Notion.',
-      'It replaced 15–20 minutes of manual reflection a day.',
-    ],
-    tags: ['Claude', 'Scheduled tasks', 'Notion', 'Granola'],
-    draft: true,
-  },
-  {
     slug: 'milo',
     title: 'Milo',
     era: '2026',
@@ -110,16 +96,14 @@ export const projects: Project[] = [
     tags: ['Strategy', 'Financial modeling', 'Presenting'],
   },
   {
-    // TODO: 1–2 photos in Taiwan, and the audio clips (see audio below).
     slug: 'chinese',
     title: 'Learning Chinese',
     era: '2022',
     date: '2022–2024',
     summary: 'Two years speaking Mandarin every day as a missionary in Taichung, Taiwan.',
     details: [
-      'Here is the progress in my own voice and my own writing: a recording from my second week in Taiwan, and an essay I wrote in Chinese at the end of the two years.',
+      'Here is where those two years got me: an excerpt from an essay I wrote in Chinese at the end of my mission.',
     ],
-    // audio: [{ src: '/projects/chinese/week-2.mp3', label: 'Week 2 in Taiwan' }],
     excerpt: {
       lang: 'zh-Hant',
       text: '我最大的改變\n更有自信\n比較會管理和有效的利用時間\n我更能夠去愛身邊的人\n更快樂\n\n這些祝福和改變不是因傳教而來的，而是因為我在這兩年有盡力奉行耶穌基督的福音。',
@@ -127,7 +111,6 @@ export const projects: Project[] = [
         'From “傳教的心得” (What I learned as a missionary), written at the end of my mission. My biggest changes: more confident, better with my time, better at loving the people around me, and happier. These blessings didn’t come from the mission itself, but from two years of doing my best to live the gospel of Jesus Christ.',
     },
     tags: ['Mandarin', 'Taiwan'],
-    draft: true,
   },
 ];
 
