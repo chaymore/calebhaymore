@@ -59,18 +59,3 @@ export const essays = [
     href: '',
   },
 ];
-
-export const projects: {
-  title: string;
-  description: string;
-  tags: string[];
-  repo?: string;
-  href?: string;
-}[] = [
-  {
-    title: 'Automated End-of-Day Work Journal',
-    description:
-      'A scheduled Claude Desktop agent that runs every evening and compiles a daily work journal entry without any manual effort. Each run, it pulls my Granola meeting recordings and transcripts, cross-references them against my Google Calendar events, and scans Notion for pages I created or updated that day. It then synthesizes everything into a structured summary — what I got done, what I learned, open tasks for the rest of the week, and the top priorities for tomorrow — and writes the result as a new sub-page inside my Notion Work Journal, titled with the date. The goal was to stop losing context between days and replace the 15–20 minutes I was spending on manual reflection with a log that is already waiting for me when I sit down the next morning.',
-    tags: ['Claude Desktop', 'Scheduled Tasks', 'Granola MCP', 'Notion MCP', 'Google Calendar MCP'],
-  },
-];

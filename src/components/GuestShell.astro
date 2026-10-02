@@ -21,7 +21,8 @@
 <div id="egg-toast" class="egg-toast" hidden aria-hidden="true"></div>
 
 <script>
-  import { pageLinks, projects, site } from '../data/site';
+  import { pageLinks, site } from '../data/site';
+  import { visibleProjects as projects } from '../data/projects';
 
   const overlay = document.getElementById('shell-overlay') as HTMLDivElement;
   const out = document.getElementById('shell-out') as HTMLDivElement;
