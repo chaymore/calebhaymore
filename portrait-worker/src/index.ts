@@ -9,12 +9,13 @@ interface Env extends SpeechEnv {
   RATE_LIMIT_SALT: string;
   ALLOWED_ORIGIN: string;
   OPENROUTER_MODEL?: string;
+  // Comma-separated, tried in order after OPENROUTER_MODEL.
   OPENROUTER_FALLBACK_MODEL?: string;
 }
 
 // Used when OPENROUTER_MODEL isn't set. Keep in sync with wrangler.jsonc.
-const DEFAULT_MODEL = '~openai/gpt-luna-latest';
-const DEFAULT_FALLBACK_MODEL = 'openai/gpt-4o-mini';
+const DEFAULT_MODEL = 'anthropic/claude-haiku-5.5';
+const DEFAULT_FALLBACK_MODELS = 'anthropic/claude-haiku-5-5,openai/gpt-4o-mini';
 
 interface RetrievedChunk { source_title: string; section: string; content: string }
 
@@ -78,7 +79,7 @@ async function ask(request: Request, env: Env, cors: HeadersInit, ctx: Execution
     headers: { authorization: `Bearer ${env.OPENROUTER_API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       // OpenRouter tries these in order, so a bad model name or an outage on the first doesn't break the chat.
-      models: [model, env.OPENROUTER_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL],
+      models: [model, ...(env.OPENROUTER_FALLBACK_MODEL || DEFAULT_FALLBACK_MODELS).split(',').map(name => name.trim()).filter(Boolean)].slice(0, 3),
       messages: [
         { role: 'system', content: buildSystemPrompt(new Date().toISOString().slice(0, 10)) },
         ...history,
