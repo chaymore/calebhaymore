@@ -85,7 +85,10 @@ async function ask(request: Request, env: Env, cors: HeadersInit, ctx: Execution
         ...history,
         { role: 'user', content: `WIKI CONTEXT\n${context}\n\nVISITOR QUESTION\n${question}` },
       ],
-      max_tokens: 400,
+      // Generous on purpose: if the model spends tokens "thinking", a small cap cuts the spoken answer off mid-sentence.
+      max_tokens: 1200,
+      // Voice answers need to start fast, so skip extended reasoning on models that support it.
+      reasoning: { enabled: false },
       // Higher than default so improvised answers are actually funny.
       temperature: 0.9,
       stream: true,
@@ -104,17 +107,22 @@ async function ask(request: Request, env: Env, cors: HeadersInit, ctx: Execution
   headers.set('server-timing', `prep;dur=${prepared - started}, model;dur=${Date.now() - prepared}`);
   headers.set('access-control-expose-headers', 'server-timing');
   // Send one copy of the answer to the visitor and read the other copy to save in the questions log.
-  const [toVisitor, toLog] = openRouterTextStream(upstream.body).tee();
-  ctx.waitUntil(logAnswer(toLog, env.DB, {
+  const meta: StreamMeta = { model: '', finishReason: '', error: '' };
+  const [toVisitor, toLog] = openRouterTextStream(upstream.body, meta).tee();
+  ctx.waitUntil(logAnswer(toLog, env.DB, meta, {
     question, matched, model, sources: [...new Set(chunks.map(chunk => chunk.source_title))], latencyMs: Date.now() - started,
   }));
   return new Response(toVisitor, { headers });
 }
 
-async function logAnswer(stream: ReadableStream<Uint8Array>, db: D1Database, meta: { question: string; matched: boolean; model: string; sources: string[]; latencyMs: number }) {
+async function logAnswer(stream: ReadableStream<Uint8Array>, db: D1Database, streamMeta: StreamMeta, meta: { question: string; matched: boolean; model: string; sources: string[]; latencyMs: number }) {
   try {
     const answer = await new Response(stream).text();
-    if (answer.trim()) await saveQuestion(db, { ...meta, answer });
+    // Record the model that actually answered, and flag answers that stopped early (finish reason other than "stop").
+    const cutOff = streamMeta.error || (streamMeta.finishReason && streamMeta.finishReason !== 'stop' ? streamMeta.finishReason : '');
+    if (cutOff) console.error('Answer ended early', cutOff, streamMeta.model);
+    const model = `${streamMeta.model || meta.model}${cutOff ? ` [CUT OFF: ${cutOff}]` : ''}`;
+    if (answer.trim()) await saveQuestion(db, { ...meta, model, answer });
   } catch (error) {
     // Logging must never affect the visitor's answer.
     console.error('Question log failed', error);
@@ -218,7 +226,9 @@ async function fallbackChunks(db: D1Database) {
   return result.results as unknown as RetrievedChunk[];
 }
 
-function openRouterTextStream(source: ReadableStream<Uint8Array>) {
+interface StreamMeta { model: string; finishReason: string; error: string }
+
+function openRouterTextStream(source: ReadableStream<Uint8Array>, meta: StreamMeta) {
   const reader = source.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -226,15 +236,22 @@ function openRouterTextStream(source: ReadableStream<Uint8Array>) {
     async pull(controller) {
       while (true) {
         const { done, value } = await reader.read();
-        buffer += decoder.decode(value, { stream: !done });
+        // On the last read, add a newline so a final event without one is still processed.
+        buffer += decoder.decode(value, { stream: !done }) + (done ? '\n' : '');
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
           if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
           try {
-            const event = JSON.parse(line.slice(6)) as { choices?: Array<{ delta?: { content?: string } }> };
-            const delta = event.choices?.[0]?.delta?.content;
-            if (delta) controller.enqueue(encoder.encode(delta));
+            const event = JSON.parse(line.slice(6)) as {
+              model?: string; error?: { message?: string };
+              choices?: Array<{ finish_reason?: string | null; delta?: { content?: string } }>;
+            };
+            if (event.model) meta.model = event.model;
+            if (event.error) meta.error = event.error.message || 'upstream error';
+            const choice = event.choices?.[0];
+            if (choice?.finish_reason) meta.finishReason = choice.finish_reason;
+            if (choice?.delta?.content) controller.enqueue(encoder.encode(choice.delta.content));
           } catch { /* incomplete/non-JSON event */ }
         }
         if (done) { controller.close(); return; }
