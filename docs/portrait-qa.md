@@ -84,7 +84,7 @@ Family, hobbies, favorite books and movies, and recent activity live in `persona
 
 ## 6. Review visitor questions
 
-Every question and answer is saved to D1 (no IP address stored). After deploying, run `npm run db:init:remote` once to create the table, then open `https://<your-worker>.workers.dev/admin/inbox` and enter the `SYNC_TOKEN`. Amber tags mark likely gaps: **admitted a gap** (the answer sounded unsure) and **no wiki match** (the wiki search found nothing, which is normal for questions `persona.ts` already covers). Add what's missing to `persona.ts` or the wiki. The raw data is at `GET /admin/questions` with `Authorization: Bearer <SYNC_TOKEN>`.
+Every question and answer is saved to D1 (no IP address stored). After deploying, run `npm run db:init:remote` once to create the table, then open `https://<your-worker>.workers.dev/admin/inbox` and enter the `SYNC_TOKEN`. The inbox lives on the **Worker's** address (shown in Cloudflare under Workers & Pages), not on calebhaymore.com. The model column shows which model actually answered, and answers that stopped early are tagged `[CUT OFF: reason]`. Amber tags mark likely gaps: **admitted a gap** (the answer sounded unsure) and **no wiki match** (the wiki search found nothing, which is normal for questions `persona.ts` already covers). Add what's missing to `persona.ts` or the wiki. The raw data is at `GET /admin/questions` with `Authorization: Bearer <SYNC_TOKEN>`.
 
 ## API behavior
 
