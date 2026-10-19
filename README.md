@@ -24,13 +24,17 @@ Set `PUBLIC_PORTRAIT_API_URL` to the deployed Worker URL to enable **Ask Caleb**
 
 See [`docs/portrait-qa.md`](docs/portrait-qa.md) for deployment, privacy, and maintenance instructions.
 
+## Calendar booking
+
+`/calendar` lets visitors book a 15 or 30 minute Google Meet from Caleb's Google Calendar free/busy. The same Worker serves it. See [`docs/calendar-booking.md`](docs/calendar-booking.md) for the one-time Google OAuth setup.
+
 ## Commands
 
 | Command | Action |
 | --- | --- |
 | `npm run dev` | Start Astro locally |
 | `npm run build` | Build the static GitHub Pages site |
-| `node --test tests/*.test.mjs` | Run portrait behavior tests |
+| `node --test tests/*.test.mjs` | Run portrait and booking tests |
 | `cd portrait-worker && npm run typecheck` | Type-check the Worker |
 | `cd portrait-worker && npm run dev` | Run the Worker with local D1 |
 
@@ -41,5 +45,6 @@ See [`docs/portrait-qa.md`](docs/portrait-qa.md) for deployment, privacy, and ma
 - `src/scripts/portrait-chat.ts` — streamed chat, browser speech input, and generated speech client
 - `src/scripts/portrait-speech-input.ts` — Web Speech API session; no microphone stream and no mouth analysis
 - `portrait-worker/src/index.ts` — API, retrieval, rate limiting, generation, and speech
+- `src/pages/calendar.astro`, `portrait-worker/src/booking.ts`, `portrait-worker/src/slots.ts` — calendar booking
 - `scripts/sync-portrait-context.mjs` — private Drive-to-D1 ingestion
 - `.github/workflows/sync-portrait-context.yml` — nightly/manual synchronization

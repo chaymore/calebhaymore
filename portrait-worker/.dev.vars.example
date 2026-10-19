@@ -11,3 +11,7 @@ RATE_LIMIT_SALT=
 # FISH_REFERENCE_KEY=caleb-reference.wav
 # Local only. A real 20–45s clip exceeds the 5 KB deployed secret limit; use R2.
 # FISH_REFERENCE_AUDIO=
+# Calendar booking (/calendar). See docs/calendar-booking.md.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=

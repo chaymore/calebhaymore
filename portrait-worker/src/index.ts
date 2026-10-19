@@ -1,8 +1,9 @@
 import { planSpeech, speechResponseHeaders, voiceStatus, VoiceReferenceError, type SpeechEnv } from './speech';
 import { buildSystemPrompt } from './prompt';
 import { inboxPage, listQuestions, saveQuestion } from './questions';
+import { availability, book, BookingError, bookingConfigured, parseBookingRequest, type BookingEnv } from './booking';
 
-interface Env extends SpeechEnv {
+interface Env extends SpeechEnv, BookingEnv {
   DB: D1Database;
   OPENROUTER_API_KEY: string;
   SYNC_TOKEN: string;
@@ -42,13 +43,15 @@ export default {
     try {
       if (url.pathname === '/health' && request.method === 'GET') {
         const row = await env.DB.prepare('SELECT COUNT(*) AS count FROM context_chunks').first<{ count: number }>();
-        return responseJson({ ok: true, chunks: row?.count ?? 0, voice: await voiceStatus(env) }, 200, cors);
+        return responseJson({ ok: true, chunks: row?.count ?? 0, voice: await voiceStatus(env), booking: bookingConfigured(env) }, 200, cors);
       }
       if (url.pathname === '/admin/sync' && request.method === 'POST') return syncContext(request, env, cors);
       if (url.pathname === '/admin/inbox' && request.method === 'GET') return inbox();
       if (url.pathname === '/admin/questions' && request.method === 'GET') return questions(request, env, cors);
       if (url.pathname === '/ask' && request.method === 'POST') return ask(request, env, cors, ctx);
       if (url.pathname === '/speak' && request.method === 'POST') return speak(request, env, cors);
+      if (url.pathname === '/calendar/availability' && request.method === 'GET') return calendarAvailability(request, env, cors);
+      if (url.pathname === '/calendar/book' && request.method === 'POST') return calendarBook(request, env, cors);
       return responseJson({ error: 'Not found' }, 404, cors);
     } catch (error) {
       console.error(error);
@@ -113,6 +116,32 @@ async function ask(request: Request, env: Env, cors: HeadersInit, ctx: Execution
     question, matched, model, sources: [...new Set(chunks.map(chunk => chunk.source_title))], latencyMs: Date.now() - started,
   }));
   return new Response(toVisitor, { headers });
+}
+
+async function calendarAvailability(request: Request, env: Env, cors: HeadersInit): Promise<Response> {
+  if (!originAllowed(request, env)) return responseJson({ error: 'Origin not allowed' }, 403, cors);
+  if (!bookingConfigured(env)) return responseJson({ error: 'Booking is not set up yet.' }, 503, cors);
+  if (!await withinRateLimit(request, env, 'slots', 30)) return responseJson({ error: 'Please wait a moment and refresh.' }, 429, cors);
+  try {
+    return responseJson(await availability(env), 200, { ...cors, 'cache-control': 'no-store' });
+  } catch (error) {
+    console.error('Calendar availability failed', error);
+    return responseJson({ error: 'The calendar is unavailable right now.' }, 502, cors);
+  }
+}
+
+async function calendarBook(request: Request, env: Env, cors: HeadersInit): Promise<Response> {
+  if (!originAllowed(request, env)) return responseJson({ error: 'Origin not allowed' }, 403, cors);
+  if (!bookingConfigured(env)) return responseJson({ error: 'Booking is not set up yet.' }, 503, cors);
+  if (!await withinRateLimit(request, env, 'book', 3)) return responseJson({ error: 'Please wait a minute before booking again.' }, 429, cors);
+  try {
+    const booking = await book(env, parseBookingRequest(await readJson<Record<string, unknown>>(request)));
+    return responseJson({ ok: true, ...booking }, 200, { ...cors, 'cache-control': 'no-store' });
+  } catch (error) {
+    if (error instanceof BookingError) return responseJson({ error: error.message }, error.status, cors);
+    console.error('Calendar booking failed', error);
+    return responseJson({ error: 'The booking did not go through. Please try again or email me.' }, 502, cors);
+  }
 }
 
 async function logAnswer(stream: ReadableStream<Uint8Array>, db: D1Database, streamMeta: StreamMeta, meta: { question: string; matched: boolean; model: string; sources: string[]; latencyMs: number }) {
@@ -262,16 +291,17 @@ function openRouterTextStream(source: ReadableStream<Uint8Array>, meta: StreamMe
   });
 }
 
-async function withinRateLimit(request: Request, env: Env) {
+// scope keeps separate per-minute budgets for each feature (Ask Caleb uses the unscoped one).
+async function withinRateLimit(request: Request, env: Env, scope = '', limit = 12) {
   const ip = request.headers.get('cf-connecting-ip') || 'local';
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`${env.RATE_LIMIT_SALT}:${ip}`));
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`${env.RATE_LIMIT_SALT}:${scope}${ip}`));
   const key = [...new Uint8Array(digest)].slice(0, 12).map(byte => byte.toString(16).padStart(2, '0')).join('');
   const minute = Math.floor(Date.now() / 60000);
   // One round trip: count this request and read the total back.
   const row = await env.DB.prepare(`INSERT INTO request_limits (key, minute, count) VALUES (?, ?, 1)
     ON CONFLICT(key, minute) DO UPDATE SET count = count + 1 RETURNING count`).bind(key, minute).first<{ count: number }>();
   if (Math.random() < 0.02) void env.DB.prepare('DELETE FROM request_limits WHERE minute < ?').bind(minute - 10).run();
-  return (row?.count ?? 1) <= 12;
+  return (row?.count ?? 1) <= limit;
 }
 
 function normalizeHistory(value: unknown) {
