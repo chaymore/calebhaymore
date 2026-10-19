@@ -18,7 +18,7 @@
 | `BOOKING_CALENDAR_ID` | `primary` | Calendar that receives bookings |
 | `BOOKING_BUSY_CALENDARS` | `primary,caleb.haymore@joinleland.com` | Calendars whose events block time |
 | `BOOKING_TIMEZONE` | `America/Denver` | Time zone of the hours below |
-| `BOOKING_HOURS` | `Mon-Fri 09:00-17:00` | Bookable windows, for example `Mon-Thu 10:00-12:00; Fri 13:00-16:00` |
+| `BOOKING_HOURS` | `Mon-Fri 09:00-22:00` | Bookable windows, for example `Mon-Thu 10:00-12:00; Fri 13:00-16:00` |
 | `BOOKING_DAYS_AHEAD` | `21` | How far ahead people can book |
 | `BOOKING_MIN_NOTICE_HOURS` | `12` | Earliest booking from now |
 | `BOOKING_BUFFER_MINUTES` | `5` | Free gap kept before and after other events |
@@ -39,6 +39,8 @@ The Worker acts as `calebhaymore@gmail.com` through an OAuth refresh token. A se
    GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... node scripts/google-calendar-token.mjs
    ```
    Sign in as `calebhaymore@gmail.com` and allow both permissions (see free/busy, and edit events). The terminal prints the refresh token.
+
+   **No terminal?** Use the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground) instead. Create the client as a **Web application** (not Desktop app) with the authorized redirect URI `https://developers.google.com/oauthplayground`. In the Playground, open the gear icon, select **Use your own OAuth credentials**, and enter the client ID and secret. In Step 1, type the scopes `https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.events`, select **Authorize APIs**, and sign in. In Step 2, select **Exchange authorization code for tokens** and copy the refresh token.
 6. Store the three values as Worker secrets (from `portrait-worker/`):
    ```sh
    npx wrangler secret put GOOGLE_CLIENT_ID

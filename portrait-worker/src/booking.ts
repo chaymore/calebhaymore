@@ -58,7 +58,7 @@ function config(env: BookingEnv): BookingConfig {
     calendarId,
     busyCalendars: busyCalendars.length ? busyCalendars : [calendarId],
     timeZone: env.BOOKING_TIMEZONE?.trim() || 'America/Denver',
-    hours: parseHours(env.BOOKING_HOURS || 'Mon-Fri 09:00-17:00'),
+    hours: parseHours(env.BOOKING_HOURS || 'Mon-Fri 09:00-22:00'),
     daysAhead: number(env.BOOKING_DAYS_AHEAD, 21, 60),
     minNoticeMinutes: number(env.BOOKING_MIN_NOTICE_HOURS, 12, 24 * 14) * 60,
     bufferMinutes: number(env.BOOKING_BUFFER_MINUTES, 5, 60),
