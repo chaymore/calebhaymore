@@ -17,7 +17,15 @@
     "OPENROUTER_FALLBACK_MODEL": "anthropic/claude-haiku-5-5,openai/gpt-4o-mini",
     "TTS_MODEL": "microsoft/mai-voice-2-flash",
     "TTS_VOICE": "en-US-Harper:MAI-Voice-2",
-    "FISH_TTS_MODEL": "fish-audio/s2.1-pro"
+    "FISH_TTS_MODEL": "fish-audio/s2.1-pro",
+    // calebhaymore.com/calendar. Secrets: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN. See docs/calendar-booking.md.
+    "BOOKING_CALENDAR_ID": "primary",
+    "BOOKING_BUSY_CALENDARS": "primary,caleb.haymore@joinleland.com",
+    "BOOKING_TIMEZONE": "America/Denver",
+    "BOOKING_HOURS": "Mon-Fri 09:00-22:00",
+    "BOOKING_DAYS_AHEAD": "21",
+    "BOOKING_MIN_NOTICE_HOURS": "12",
+    "BOOKING_BUFFER_MINUTES": "5"
   },
   // Voice clone stays off until caleb-reference.wav exists in this bucket. See docs/VOICE-CLONE.md.
   // Paid Fish model: about 0.7 s faster to first audio than "fish-audio/s2.1-pro-free:free" (Sept 2026 benchmark).

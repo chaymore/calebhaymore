@@ -1,0 +1,957 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CornerLinks from '../components/CornerLinks.astro';
+import { site } from '../data/site';
+
+// Same Worker as Ask Caleb. Without it the page shows an email fallback (add ?demo to preview with sample times).
+const apiUrl = import.meta.env.PUBLIC_PORTRAIT_API_URL ?? '';
+const description = 'Book a 15 or 30 minute call with Caleb Haymore.';
+---
+
+<Layout minimal bodyClass="plain" title="Caleb Haymore | Book a time" description={description}>
+  <a class="home-link" href="/">Caleb Haymore</a>
+  <CornerLinks />
+
+  <main class="booking">
+    <header>
+      <h1>Book a time</h1>
+      <p>Pick a slot that works for you. You’ll get a calendar invite with a Google Meet link.</p>
+    </header>
+
+    <section class="bk-card" id="booker" data-api={apiUrl} data-email={site.email} data-step="pick" aria-label="Scheduler">
+      <aside class="bk-meta">
+        <img class="bk-avatar" src="/caleb-portrait.jpg" alt="" width="56" height="56" />
+        <p class="bk-host">Caleb Haymore</p>
+        <h2 class="bk-title">Quick call</h2>
+
+        <p class="bk-label" id="bk-length-label">Length</p>
+        <div class="bk-durations" role="group" aria-labelledby="bk-length-label">
+          <button type="button" data-duration="15" aria-pressed="false">15 min</button>
+          <button type="button" data-duration="30" aria-pressed="true">30 min</button>
+        </div>
+
+        <ul class="bk-facts">
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 10.5 20 7v10l-5-3.5M4 7h11v10H4z" /></svg>
+            Google Meet
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3" /></svg>
+            <label class="bk-tz">
+              <span class="sr-only">Time zone</span>
+              <select id="bk-tz"></select>
+            </label>
+          </li>
+        </ul>
+
+        <div class="bk-chosen" id="bk-chosen" hidden>
+          <p class="bk-label">Selected</p>
+          <p id="bk-chosen-text"></p>
+        </div>
+      </aside>
+
+      <div class="bk-body">
+        <div class="bk-pick" id="bk-pick">
+          <div class="bk-month">
+            <div class="bk-month-head">
+              <h3 id="bk-month-title">&nbsp;</h3>
+              <div class="bk-month-nav">
+                <button type="button" id="bk-prev" aria-label="Previous month">‹</button>
+                <button type="button" id="bk-next" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <div class="bk-weekdays" aria-hidden="true">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div class="bk-days" id="bk-days" role="grid" aria-labelledby="bk-month-title"></div>
+          </div>
+
+          <div class="bk-times">
+            <h3 id="bk-day-title">Select a day</h3>
+            <div class="bk-slot-list" id="bk-slots"></div>
+          </div>
+        </div>
+
+        <form class="bk-form" id="bk-form" hidden novalidate>
+          <button type="button" class="bk-back" id="bk-back">‹ Back</button>
+          <h3>Your details</h3>
+          <label>
+            <span>Name</span>
+            <input name="name" autocomplete="name" maxlength="80" required />
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" maxlength="200" required />
+          </label>
+          <label>
+            <span>What would you like to talk about?</span>
+            <textarea name="topic" rows="4" maxlength="600" required placeholder="A sentence or two is plenty."></textarea>
+            <small class="bk-count" id="bk-count">0 / 600</small>
+          </label>
+          <label class="bk-trap" aria-hidden="true">
+            Website <input name="website" tabindex="-1" autocomplete="off" />
+          </label>
+          <p class="bk-error" id="bk-form-error" role="alert"></p>
+          <button type="submit" class="bk-primary" id="bk-submit">Confirm booking</button>
+        </form>
+
+        <div class="bk-done" id="bk-done" hidden>
+          <div class="bk-check" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+          </div>
+          <h3>You’re booked</h3>
+          <p id="bk-done-when"></p>
+          <p class="bk-muted" id="bk-done-note"></p>
+          <a class="bk-meet" id="bk-done-meet" target="_blank" rel="noopener noreferrer" hidden>Open Google Meet link</a>
+          <button type="button" class="bk-back" id="bk-again">Book another time</button>
+        </div>
+
+        <div class="bk-status" id="bk-status" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <p class="bk-footnote">
+      Times are shown in your time zone. Prefer email? <a href={`mailto:${site.email}`}>{site.email}</a>
+    </p>
+  </main>
+</Layout>
+
+<style is:global>
+  .booking {
+    width: min(100%, 64rem);
+    margin: 0 auto;
+    padding: 6rem 1.25rem 5rem;
+  }
+
+  .booking header {
+    text-align: center;
+  }
+
+  .booking h1 {
+    margin: 0;
+    color: #111;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .booking header p {
+    margin: 0.4rem 0 0;
+    color: #8a8a8a;
+    font-size: 0.95rem;
+  }
+
+  .bk-card {
+    display: grid;
+    grid-template-columns: 15.5rem 1fr;
+    margin-top: 2.5rem;
+    border: 1px solid #eee;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.03),
+      0 18px 40px -12px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+  }
+
+  /* :where() keeps these resets weaker than the component styles below. */
+  :where(.bk-card) :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+  }
+
+  :where(.bk-card) button {
+    cursor: pointer;
+  }
+
+  .bk-card button:focus-visible,
+  .bk-card a:focus-visible {
+    outline: 2px solid #111;
+    outline-offset: 2px;
+  }
+
+  /* left column */
+
+  .bk-meta {
+    display: flex;
+    flex-direction: column;
+    padding: 1.75rem 1.5rem;
+    border-right: 1px solid #f0f0f0;
+  }
+
+  .bk-avatar {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+    filter: grayscale(1);
+  }
+
+  .bk-host {
+    margin: 1rem 0 0;
+    color: #8a8a8a;
+    font-size: 0.85rem;
+  }
+
+  .bk-title {
+    margin: 0.15rem 0 1.5rem;
+    color: #111;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .bk-label {
+    margin: 0 0 0.5rem;
+    color: #9a9a9a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .bk-durations {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px;
+    border-radius: 999px;
+    background: #f3f3f3;
+  }
+
+  .bk-durations button {
+    padding: 0.45rem 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #777;
+    font-size: 0.85rem;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  }
+
+  .bk-durations button[aria-pressed="true"] {
+    background: #fff;
+    color: #111;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .bk-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  .bk-facts li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .bk-facts svg {
+    flex: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: #888;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+  }
+
+  .bk-tz {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .bk-tz select {
+    width: 100%;
+    padding: 0.2rem 0;
+    border: 0;
+    border-bottom: 1px dashed #d5d5d5;
+    background: transparent;
+    color: #555;
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .bk-chosen {
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .bk-chosen p:last-child {
+    margin: 0;
+    color: #111;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+
+  /* right column */
+
+  .bk-body {
+    position: relative;
+    min-height: 26rem;
+    padding: 1.75rem;
+  }
+
+  .bk-pick {
+    display: grid;
+    grid-template-columns: 1fr 12rem;
+    gap: 2rem;
+  }
+
+  .bk-month-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .bk-body h3 {
+    margin: 0;
+    color: #111;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .bk-month-nav {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .bk-month-nav button {
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #111;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .bk-month-nav button:hover:not(:disabled) {
+    background: #f3f3f3;
+  }
+
+  .bk-month-nav button:disabled {
+    color: #d0d0d0;
+    cursor: default;
+  }
+
+  .bk-weekdays,
+  .bk-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.3rem;
+  }
+
+  .bk-weekdays span {
+    padding-bottom: 0.4rem;
+    color: #9a9a9a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .bk-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    max-width: 2.9rem;
+    width: 100%;
+    margin: 0 auto;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #c4c4c4;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bk-day:disabled {
+    cursor: default;
+  }
+
+  .bk-day.open {
+    background: #f3f3f3;
+    color: #111;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .bk-day.open:hover {
+    background: #e7e7e7;
+  }
+
+  .bk-day.open[aria-pressed="true"] {
+    background: #111;
+    color: #fff;
+  }
+
+  .bk-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 18%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .bk-times h3 {
+    margin-bottom: 1rem;
+    line-height: 2rem;
+  }
+
+  .bk-slot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 19.5rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .bk-slot {
+    padding: 0.7rem 0;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    background: #fff;
+    color: #111;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+
+  .bk-slot:hover {
+    border-color: #111;
+  }
+
+  .bk-empty {
+    margin: 0;
+    color: #9a9a9a;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  /* form */
+
+  .bk-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 30rem;
+  }
+
+  .bk-form label {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  .bk-form input,
+  .bk-form textarea {
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    background: #fff;
+    color: #111;
+    font-size: 0.95rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .bk-form textarea {
+    resize: vertical;
+    min-height: 6rem;
+    line-height: 1.45;
+  }
+
+  .bk-form input:focus,
+  .bk-form textarea:focus {
+    border-color: #111;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .bk-count {
+    align-self: flex-end;
+    color: #aaa;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+  }
+
+  .bk-trap {
+    position: absolute !important;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .bk-back {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #8a8a8a;
+    font-size: 0.85rem;
+  }
+
+  .bk-back:hover {
+    color: #111;
+  }
+
+  .bk-primary {
+    align-self: flex-start;
+    padding: 0.75rem 1.5rem;
+    border: 0;
+    border-radius: 999px;
+    background: #111;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+
+  .bk-primary:disabled {
+    opacity: 0.5;
+    cursor: progress;
+  }
+
+  .bk-error {
+    margin: 0;
+    min-height: 1.2em;
+    color: #b42318;
+    font-size: 0.85rem;
+  }
+
+  .bk-error:empty {
+    display: none;
+  }
+
+  /* done */
+
+  .bk-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 2.5rem 0 1rem;
+    text-align: center;
+  }
+
+  .bk-check {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin-bottom: 0.5rem;
+    border-radius: 50%;
+    background: #111;
+  }
+
+  .bk-check svg {
+    width: 1.5rem;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .bk-done h3 {
+    font-size: 1.3rem;
+  }
+
+  .bk-done p {
+    margin: 0;
+    color: #111;
+    line-height: 1.5;
+  }
+
+  .bk-done .bk-muted {
+    max-width: 26rem;
+    color: #8a8a8a;
+    font-size: 0.9rem;
+  }
+
+  .bk-meet {
+    margin-top: 0.5rem;
+    color: #111;
+    font-size: 0.9rem;
+  }
+
+  .bk-done .bk-back {
+    align-self: center;
+    margin-top: 1rem;
+  }
+
+  /* loading / offline */
+
+  .bk-status:empty {
+    display: none;
+  }
+
+  .bk-status {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.92);
+    color: #8a8a8a;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .bk-status a {
+    color: #111;
+  }
+
+  .bk-card[data-step="form"] .bk-pick,
+  .bk-card[data-step="done"] .bk-pick {
+    display: none;
+  }
+
+  .bk-footnote {
+    margin: 1.5rem 0 0;
+    color: #9a9a9a;
+    font-size: 0.82rem;
+    text-align: center;
+  }
+
+  .bk-footnote a {
+    color: #555;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 860px) {
+    .bk-card {
+      grid-template-columns: 1fr;
+    }
+
+    .bk-meta {
+      border-right: 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .bk-pick {
+      grid-template-columns: 1fr;
+    }
+
+    .bk-slot-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .booking {
+      padding-top: 5rem;
+    }
+
+    .bk-meta,
+    .bk-body {
+      padding: 1.25rem;
+    }
+  }
+</style>
+
+<script>
+  type Availability = { timeZone: string; durations: number[]; slots: Record<string, string[]> };
+
+  const card = document.getElementById('booker') as HTMLElement;
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const api = (card.dataset.api ?? '').replace(/\/$/, '');
+  const email = card.dataset.email ?? '';
+  const demo = new URLSearchParams(location.search).has('demo');
+
+  const tzSelect = $<HTMLSelectElement>('bk-tz');
+  const daysEl = $('bk-days');
+  const slotsEl = $('bk-slots');
+  const status = $('bk-status');
+  const form = $<HTMLFormElement>('bk-form');
+  const formError = $('bk-form-error');
+  const submit = $<HTMLButtonElement>('bk-submit');
+
+  const state = {
+    data: null as Availability | null,
+    duration: 30,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Denver',
+    month: '', // YYYY-MM
+    day: '', // YYYY-MM-DD
+    slot: '', // ISO start
+  };
+
+  // ---- dates in the visitor's chosen time zone ----
+
+  const dayKey = (iso: string | number) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: state.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  const timeLabel = (iso: string) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: state.timeZone, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+  const longDate = (iso: string) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: state.timeZone, weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(iso));
+  const keyDate = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d || 1));
+  };
+  const monthTitle = (month: string) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(keyDate(month));
+  const dayTitle = (key: string) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'short', day: 'numeric' }).format(keyDate(key));
+  const shiftMonth = (month: string, by: number) => {
+    const date = keyDate(month);
+    date.setUTCMonth(date.getUTCMonth() + by);
+    return date.toISOString().slice(0, 7);
+  };
+
+  function slotsByDay() {
+    const groups = new Map<string, string[]>();
+    for (const iso of state.data?.slots[state.duration] ?? []) {
+      const key = dayKey(iso);
+      groups.set(key, [...(groups.get(key) ?? []), iso]);
+    }
+    return groups;
+  }
+
+  // ---- rendering ----
+
+  function render() {
+    const groups = slotsByDay();
+    const keys = [...groups.keys()];
+    const today = dayKey(Date.now());
+    if (!state.month) state.month = (keys[0] ?? today).slice(0, 7);
+    if (state.day && !groups.has(state.day)) state.day = '';
+    if (!state.day && keys.length && window.matchMedia('(min-width: 861px)').matches) {
+      state.day = keys.find(key => key.startsWith(state.month)) ?? '';
+    }
+
+    const firstMonth = today.slice(0, 7);
+    const lastMonth = (keys.at(-1) ?? today).slice(0, 7);
+    $<HTMLButtonElement>('bk-prev').disabled = state.month <= firstMonth;
+    $<HTMLButtonElement>('bk-next').disabled = state.month >= lastMonth;
+    $('bk-month-title').textContent = monthTitle(state.month);
+
+    const first = keyDate(state.month);
+    const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+    const cells: HTMLElement[] = [];
+    for (let i = 0; i < first.getUTCDay(); i += 1) cells.push(document.createElement('span'));
+    for (let d = 1; d <= daysInMonth; d += 1) {
+      const key = `${state.month}-${String(d).padStart(2, '0')}`;
+      const open = groups.has(key);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `bk-day${open ? ' open' : ''}${key === today ? ' today' : ''}`;
+      button.textContent = String(d);
+      button.disabled = !open;
+      button.setAttribute('aria-pressed', String(key === state.day));
+      button.setAttribute('aria-label', `${dayTitle(key)}${open ? `, ${groups.get(key)!.length} times available` : ', unavailable'}`);
+      button.addEventListener('click', () => { state.day = key; render(); });
+      cells.push(button);
+    }
+    daysEl.replaceChildren(...cells);
+
+    $('bk-day-title').textContent = state.day ? dayTitle(state.day) : keys.length ? 'Select a day' : 'No open times';
+    if (!state.day) {
+      const empty = document.createElement('p');
+      empty.className = 'bk-empty';
+      empty.textContent = keys.length
+        ? 'Days in bold have open times.'
+        : `Nothing open in the next few weeks. Email ${email} and we’ll find a time.`;
+      slotsEl.replaceChildren(empty);
+      return;
+    }
+    slotsEl.replaceChildren(...(groups.get(state.day) ?? []).map(iso => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'bk-slot';
+      button.textContent = timeLabel(iso);
+      button.addEventListener('click', () => choose(iso));
+      return button;
+    }));
+  }
+
+  function summary(iso: string) {
+    return `${longDate(iso)}\n${timeLabel(iso)} – ${timeLabel(new Date(Date.parse(iso) + state.duration * 60000).toISOString())} · ${state.duration} min`;
+  }
+
+  function setStep(step: 'pick' | 'form' | 'done') {
+    card.dataset.step = step;
+    form.hidden = step !== 'form';
+    $('bk-done').hidden = step !== 'done';
+    $('bk-chosen').hidden = step !== 'form';
+  }
+
+  function choose(iso: string) {
+    state.slot = iso;
+    $('bk-chosen-text').innerText = summary(iso);
+    formError.textContent = '';
+    setStep('form');
+    (form.elements.namedItem('name') as HTMLInputElement).focus();
+  }
+
+  function showStatus(message: string, withEmail = false) {
+    const text = document.createElement('p');
+    text.textContent = message;
+    if (withEmail) {
+      const link = document.createElement('a');
+      link.href = `mailto:${email}`;
+      link.textContent = email;
+      text.append(document.createElement('br'), link);
+    }
+    status.replaceChildren(text);
+  }
+
+  // ---- data ----
+
+  async function load() {
+    showStatus('Loading open times…');
+    try {
+      if (demo) state.data = demoAvailability();
+      else {
+        if (!api) throw new Error('offline');
+        const response = await fetch(`${api}/calendar/availability`, { cache: 'no-store' });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'unavailable');
+        state.data = body as Availability;
+      }
+      status.replaceChildren();
+      render();
+    } catch {
+      showStatus('The scheduler is offline right now. Email me and we’ll find a time:', true);
+    }
+  }
+
+  async function sendBooking(payload: Record<string, unknown>) {
+    if (demo) {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      return { ok: true, start: payload.start, meetLink: '' };
+    }
+    const response = await fetch(`${api}/calendar/book`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(body.error || 'The booking did not go through.'), { status: response.status });
+    return body as { start: string; meetLink: string };
+  }
+
+  // Sample weekday times for previewing the page with ?demo before the Worker is configured.
+  function demoAvailability(): Availability {
+    const slots: Record<string, string[]> = { 15: [], 30: [] };
+    const start = new Date();
+    start.setUTCHours(15, 0, 0, 0);
+    for (let day = 1; day <= 21; day += 1) {
+      const date = new Date(start.getTime() + day * 86400000);
+      if (date.getUTCDay() === 0 || date.getUTCDay() === 6) continue;
+      for (let minute = 0; minute < 8 * 60; minute += 15) {
+        if ((minute / 15 + day) % 5 === 0 || (minute >= 180 && minute < 240)) continue;
+        const iso = new Date(date.getTime() + minute * 60000).toISOString();
+        slots[15].push(iso);
+        if (minute % 30 === 0 && (minute / 15 + day + 1) % 5 !== 0) slots[30].push(iso);
+      }
+    }
+    return { timeZone: 'America/Denver', durations: [15, 30], slots };
+  }
+
+  // ---- events ----
+
+  function fillTimeZones() {
+    let zones: string[] = [];
+    try { zones = (Intl as unknown as { supportedValuesOf(key: string): string[] }).supportedValuesOf('timeZone'); } catch { /* old browsers */ }
+    if (!zones.length) zones = ['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York', 'Europe/London', 'UTC'];
+    if (!zones.includes(state.timeZone)) zones.unshift(state.timeZone);
+    tzSelect.replaceChildren(...zones.map(zone => new Option(zone.replaceAll('_', ' ').replace('/', ' / '), zone, false, zone === state.timeZone)));
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('.bk-durations button').forEach(button => {
+    button.addEventListener('click', () => {
+      state.duration = Number(button.dataset.duration);
+      document.querySelectorAll('.bk-durations button').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+      if (card.dataset.step !== 'pick') setStep('pick');
+      if (state.data) render();
+    });
+  });
+
+  tzSelect.addEventListener('change', () => {
+    state.timeZone = tzSelect.value;
+    state.month = '';
+    state.day = '';
+    if (state.data) render();
+    if (state.slot && card.dataset.step === 'form') $('bk-chosen-text').innerText = summary(state.slot);
+  });
+
+  $('bk-prev').addEventListener('click', () => { state.month = shiftMonth(state.month, -1); state.day = ''; render(); });
+  $('bk-next').addEventListener('click', () => { state.month = shiftMonth(state.month, 1); state.day = ''; render(); });
+  $('bk-back').addEventListener('click', () => setStep('pick'));
+  $('bk-again').addEventListener('click', () => { form.reset(); $('bk-count').textContent = '0 / 600'; setStep('pick'); load(); });
+
+  const topic = form.elements.namedItem('topic') as HTMLTextAreaElement;
+  topic.addEventListener('input', () => { $('bk-count').textContent = `${topic.value.length} / 600`; });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    if (data.name.trim().length < 2) { formError.textContent = 'Please add your name.'; return; }
+    if (!(form.elements.namedItem('email') as HTMLInputElement).checkValidity() || !data.email.trim()) { formError.textContent = 'Please add a valid email address.'; return; }
+    if (data.topic.trim().length < 3) { formError.textContent = 'Add a short note about what you want to talk about.'; return; }
+
+    formError.textContent = '';
+    submit.disabled = true;
+    submit.textContent = 'Booking…';
+    try {
+      const result = await sendBooking({ ...data, start: state.slot, duration: state.duration, timeZone: state.timeZone });
+      $('bk-done-when').innerText = summary(state.slot);
+      $('bk-done-note').textContent = `A calendar invite is on its way to ${data.email.trim()}.`;
+      const meet = $<HTMLAnchorElement>('bk-done-meet');
+      meet.hidden = !result.meetLink;
+      if (result.meetLink) meet.href = result.meetLink;
+      setStep('done');
+    } catch (error) {
+      formError.textContent = (error as Error).message;
+      // The slot was taken since the page loaded: refresh times so the visitor can pick again.
+      if ((error as { status?: number }).status === 409) {
+        state.slot = '';
+        await load();
+        setStep('pick');
+        showStatus((error as Error).message);
+        setTimeout(() => status.replaceChildren(), 2600);
+      }
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Confirm booking';
+    }
+  });
+
+  fillTimeZones();
+  load();
+</script>
