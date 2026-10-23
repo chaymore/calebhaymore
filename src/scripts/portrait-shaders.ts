@@ -121,9 +121,10 @@ export const pointVertex = /* glsl */ `
   uniform float pixelRatio;
   uniform float pointScale;
   uniform float ascii;
+  uniform float form;
   varying float radius;
   varying float ink;
-  varying float visible;
+  varying float tone;
   varying vec3 portraitPosition;
   ${deform}
   ${lids}
@@ -170,27 +171,40 @@ export const pointVertex = /* glsl */ `
       size = max(size, mix(size, 1.2 * pointScale, edge * .5));
       size = max(size, mix(size, 1.45 * pointScale, max(seam, corner * .6)));
     }
-    visible = ascii > .5 && seed > .18 ? 0. : 1.;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.);
+    // ASCII view: mark size already carries texture, light, lids, and lips, so it becomes the gray tone.
+    tone = smoothstep(.55, 1.35, size / pointScale);
+    // Formation intro: each dot starts in a loose cloud and arrives on its own delay.
+    vec3 q = p;
+    float arrived = 1.;
+    if (form < 1.) {
+      arrived = clamp(form*1.6 - seed*.6, 0., 1.);
+      arrived = 1. - pow(1.-arrived, 3.);
+      float h = fract(seed*43.758);
+      q += (p*.9 + vec3(cos(h*44.6), sin(h*33.3), sin(h*23.2))) * (1.-arrived) * (1.1+h);
+    }
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(q,1.);
     gl_Position.z -= .0008 * gl_Position.w;
-    gl_PointSize = mix(3.,6.5,ascii) * pixelRatio * pointScale;
+    // In flight the wide ASCII discs shrink, so the loose cloud does not paint over the page.
+    gl_PointSize = mix(3., 6.5*mix(.15, 1., arrived), ascii) * pixelRatio * pointScale;
+    tone *= mix(.4, 1., arrived);
     radius = size / (3. * pointScale) * .5;
   }
 `;
 export const pointFragment = /* glsl */ `
   uniform float ascii;
-  uniform sampler2D glyphs;
   varying float radius;
   varying float ink;
-  varying float visible;
+  varying float tone;
   ${aperture}
   void main() {
     if (insideMouth()) discard;
-    if (visible < .5) discard;
+    // ASCII view: wide gray discs fill the surface; the depth test keeps the nearest one.
     if (ascii > .5) {
-      float index = min(7., floor(ink*8.));
-      if(texture2D(glyphs,vec2((index+gl_PointCoord.x)/8.,1.-gl_PointCoord.y)).a < .45) discard;
-    } else if(length(gl_PointCoord-.5) > radius) discard;
+      if (length(gl_PointCoord-.5) > .5) discard;
+      gl_FragColor = vec4(vec3(1.-tone), 1.);
+      return;
+    }
+    if (length(gl_PointCoord-.5) > radius) discard;
     gl_FragColor=vec4(0.,0.,0.,1.);
   }
 `;
@@ -204,6 +218,7 @@ export const eyeVertex = /* glsl */ `
   uniform float pixelRatio;
   uniform float pointScale;
   uniform float ascii;
+  uniform float form;
   varying float radius;
   varying float visible;
   uniform float blink;
@@ -223,14 +238,14 @@ export const eyeVertex = /* glsl */ `
     float inside = step(abs(u), .95) * step(lower + .0012, y) * step(y, upper - .0012);
     vec3 nView = normalize(normalMatrix * dir);
     float facing = step(.25, nView.z);
-    visible = inside * facing * (1.-step(.5, ascii));
+    visible = inside * facing * step(.9, form);
     float rho = length(disk);
     float fiber = .5 + .5*sin(atan(disk.y, disk.x)*19. + seed*6.2831);
     radius = rho < .36 ? .4 : rho > .84 ? .28 : mix(.1, .23, fiber);
     vec4 mv = modelViewMatrix * vec4(p, 1.);
     mv.z += .015;
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = 3. * pixelRatio * pointScale;
+    gl_PointSize = mix(3., 4.5, ascii) * pixelRatio * pointScale;
   }
 `;
 export const eyeFragment = /* glsl */ `
@@ -245,7 +260,7 @@ export const eyeFragment = /* glsl */ `
 // Recessed, dotted mouth interior revealed when the lower lip separates:
 // a pale band of upper teeth under the lip and a lighter tongue at the bottom.
 export const cavityVertex = /* glsl */ `
-  uniform vec3 mouth; uniform vec3 mouthCenter; uniform vec4 mouthScan; uniform float pixelRatio; uniform float pointScale;
+  uniform vec3 mouth; uniform vec3 mouthCenter; uniform vec4 mouthScan; uniform float pixelRatio; uniform float pointScale; uniform float ascii;
   varying float keep;
   void main(){
     float width=mouthScan.z*.68*(1.-mouth.y*.18+mouth.z*.12);
@@ -261,7 +276,7 @@ export const cavityVertex = /* glsl */ `
     // Slightly larger than the opening so the dark interior reaches the lip edge.
     vec3 p=vec3(mouthCenter.x+position.x*width*1.08,mouthCenter.y-.0275*mouth.x+v*(.004+.0355*mouth.x)*1.12,mouthCenter.z-.032-.038*(1.-position.z));
     gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
-    gl_PointSize=1.3*pixelRatio*pointScale;
+    gl_PointSize=mix(1.3,3.,ascii)*pixelRatio*pointScale;
   }
 `;
 export const cavityFragment = /* glsl */ `
@@ -297,3 +312,27 @@ void main(){
 }`;
 export const surfaceFragment = `${aperture}
 void main(){if(insideMouth()) discard;gl_FragColor=vec4(1.);}`;
+
+// ASCII view: the gray tone image of the bust is cut into character cells.
+// Each cell averages 5x5 samples of its tone and draws one glyph from the ramp atlas.
+export const asciiVertex = /* glsl */ `
+  void main(){ gl_Position = vec4(position.xy, 0., 1.); }
+`;
+export const asciiFragment = /* glsl */ `
+  uniform sampler2D tone;
+  uniform sampler2D glyphs;
+  uniform vec2 resolution;
+  uniform vec2 cell;
+  uniform float glyphCount;
+  void main(){
+    vec2 origin = floor(gl_FragCoord.xy / cell) * cell;
+    float dark = 0.;
+    for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++)
+      dark += 1. - texture2D(tone, (origin + (vec2(float(i), float(j)) + .5) / 5. * cell) / resolution).r;
+    dark /= 25.;
+    float index = min(glyphCount - 1., floor(clamp(pow(dark, .85) * 1.5, 0., .999) * glyphCount));
+    vec2 local = (gl_FragCoord.xy - origin) / cell;
+    float glyph = texture2D(glyphs, vec2((index + local.x) / glyphCount, local.y)).a;
+    gl_FragColor = vec4(vec3(mix(1., .067, glyph)), 1.);
+  }
+`;

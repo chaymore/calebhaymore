@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { PortraitSpeech, type MouthShape, type VisemeCue } from './portrait-speech';
-import { pointVertex, pointFragment, surfaceVertex, surfaceFragment, eyeVertex, eyeFragment, cavityVertex, cavityFragment, cavityBackVertex, cavityBackFragment } from './portrait-shaders';
+import { pointVertex, pointFragment, surfaceVertex, surfaceFragment, eyeVertex, eyeFragment, cavityVertex, cavityFragment, cavityBackVertex, cavityBackFragment, asciiVertex, asciiFragment } from './portrait-shaders';
 import { portraitTurn } from './portrait-turn.ts';
 import { createFaceMotion } from './portrait-face.ts';
 import { parseMouthFit, mountMouthTuner, type MouthFit } from './portrait-mouth.ts';
+import { resolveView, asciiCell, ASCII_RAMP, type PortraitView } from './portrait-view.ts';
 
 export interface PortraitAPI {
   setMouth(shape: Partial<MouthShape>): void;
@@ -54,12 +55,8 @@ export async function initHeadPortrait(root: HTMLElement) {
     geometry.setAttribute('seed',new THREE.BufferAttribute(Float32Array.from({length:meta.count},(_,i)=>(i*0.61803398875)%1),1));
     const surfaceGeometry = new THREE.BufferGeometry(); disposable.push(surfaceGeometry);
     surfaceGeometry.setAttribute('position',new THREE.BufferAttribute(Float32Array.from(new Int16Array(surfaceBuffer),v=>v/8192),3));
-    const atlas = document.createElement('canvas'); atlas.width=512; atlas.height=64;
-    const ctx=atlas.getContext('2d')!; ctx.fillStyle='#fff';ctx.font='48px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
-    ['.',':','-','+','=','*','#','@'].forEach((glyph,i)=>ctx.fillText(glyph,i*64+32,33));
-    const glyphs=new THREE.CanvasTexture(atlas); disposable.push(glyphs);
-    const uniforms={mouth:{value:new THREE.Vector3()},mouthCenter:{value:new THREE.Vector3(...meta.mouth)},mouthScan:{value:new THREE.Vector4()},mouthTune:{value:new THREE.Vector4()},pixelRatio:{value:renderer.getPixelRatio()},pointScale:{value:1},ascii:{value:0},glyphs:{value:glyphs},blink:{value:0},brow:{value:0},gaze:{value:new THREE.Vector2()}};
     const tuning=new URLSearchParams(location.search).has('mouth');
+    const uniforms={mouth:{value:new THREE.Vector3()},mouthCenter:{value:new THREE.Vector3(...meta.mouth)},mouthScan:{value:new THREE.Vector4()},mouthTune:{value:new THREE.Vector4()},pixelRatio:{value:renderer.getPixelRatio()},pointScale:{value:1},ascii:{value:0},form:{value:reducedMotion.matches||tuning?1:0},blink:{value:0},brow:{value:0},gaze:{value:new THREE.Vector2()}};
     const applyMouth=(fit:MouthFit,raw=false)=>{
       uniforms.mouthScan.value.set(fit.cx,fit.cy,fit.halfWidth,fit.slope);
       uniforms.mouthTune.value.set(fit.upper,fit.lower,raw?1:0,0);
@@ -105,10 +102,34 @@ export async function initHeadPortrait(root: HTMLElement) {
     const back=new THREE.Mesh(backGeometry,backMaterial);back.frustumCulled=false;back.renderOrder=-1;head.add(back);
     const scene=new THREE.Scene();scene.add(bust);
     const camera=new THREE.OrthographicCamera(-3,3,2.1,-2.1,.1,20);camera.position.z=6;
-    const render=()=>renderer!.render(scene,camera);
+    // ASCII view: draw the bust as a gray tone image off screen, then cut it into glyph cells.
+    const atlas=document.createElement('canvas');atlas.width=ASCII_RAMP.length*48;atlas.height=80;
+    const ctx=atlas.getContext('2d')!;ctx.fillStyle='#000';ctx.font='600 66px ui-monospace, Menlo, monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    [...ASCII_RAMP].forEach((glyph,i)=>ctx.fillText(glyph,i*48+24,42));
+    const glyphs=new THREE.CanvasTexture(atlas);disposable.push(glyphs);
+    const toneTarget=new THREE.WebGLRenderTarget(1,1);disposable.push(toneTarget);
+    const asciiUniforms={tone:{value:toneTarget.texture},glyphs:{value:glyphs},resolution:{value:new THREE.Vector2(1,1)},cell:{value:new THREE.Vector2(6,10)},glyphCount:{value:ASCII_RAMP.length}};
+    const asciiMaterial=new THREE.ShaderMaterial({uniforms:asciiUniforms,vertexShader:asciiVertex,fragmentShader:asciiFragment,depthTest:false,depthWrite:false});disposable.push(asciiMaterial);
+    const asciiGeometry=new THREE.PlaneGeometry(2,2);disposable.push(asciiGeometry);
+    const asciiScene=new THREE.Scene();asciiScene.add(new THREE.Mesh(asciiGeometry,asciiMaterial));
+    const asciiCamera=new THREE.Camera();
+    const viewButtons=[...root.querySelectorAll<HTMLButtonElement>('[data-view]')];
+    let view:PortraitView='dots';
+    const render=()=>{
+      if(view==='ascii'){renderer!.setRenderTarget(toneTarget);renderer!.render(scene,camera);renderer!.setRenderTarget(null);renderer!.render(asciiScene,asciiCamera);}
+      else renderer!.render(scene,camera);
+    };
+    const setView=(next:PortraitView)=>{
+      view=tuning?'dots':next;uniforms.ascii.value=view==='ascii'?1:0;root.dataset.view=view;
+      viewButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.view===view)));
+      render();
+    };
     const resize=()=>{
       const w=root.clientWidth,h=root.clientHeight;if(!w||!h)return;
       renderer!.setSize(w,h,false);
+      const buffer=renderer!.getDrawingBufferSize(new THREE.Vector2());
+      toneTarget.setSize(buffer.x,buffer.y);asciiUniforms.resolution.value.copy(buffer);
+      const cell=asciiCell(h,renderer!.getPixelRatio());asciiUniforms.cell.value.set(cell.width,cell.height);
       const aspect=w/h,vertical=Math.max(3.95,3.8/aspect);
       camera.left=-vertical*aspect/2;camera.right=vertical*aspect/2;camera.top=vertical/2;camera.bottom=-vertical/2;
       camera.updateProjectionMatrix();
@@ -116,6 +137,12 @@ export async function initHeadPortrait(root: HTMLElement) {
       render();
     };
     observer=new ResizeObserver(resize);observer.observe(root);
+    let storedView:string|null=null;try{storedView=localStorage.getItem('portrait-view');}catch{}
+    setView(resolveView(location.search,storedView));
+    viewButtons.forEach(button=>on(button,'click',()=>{
+      setView(button.dataset.view==='ascii'?'ascii':'dots');
+      try{localStorage.setItem('portrait-view',view);}catch{}
+    }));
     status.hidden=true;
     reducedMotion.addEventListener('change',()=>{playing=!reducedMotion.matches;},{signal:events.signal});
     const holdFront=()=>{dragging=false;bust.rotation.set(0,0,0);render();};
@@ -175,6 +202,8 @@ export async function initHeadPortrait(root: HTMLElement) {
     }
     window.calebPortrait=api;window.dispatchEvent(new CustomEvent('portrait:ready',{detail:api}));
     let previous=performance.now();const started=previous;let lastSpeech=-Infinity;
+    // The intro advances by clamped frame time, so a slow first frame cannot skip it.
+    const formSeconds=1.8;
     const animate=(time:number)=>{
       const dt=Math.min((time-previous)/1000,.05);previous=time;
       if(!document.hidden){
@@ -203,7 +232,9 @@ export async function initHeadPortrait(root: HTMLElement) {
           bust.rotation.x*=Math.exp(-dt*6);
         }
         if(turn==='idle')bust.rotation.y+=dt*.08;
-        if(turn==='idle'||turn==='face'||posed||faceShift>.00001||Math.abs(oldOpen-shape.open)+Math.abs(oldRound-shape.round)+Math.abs(oldWide-shape.wide)>.00001)render();
+        const forming=uniforms.form.value<1;
+        if(forming)uniforms.form.value=reducedMotion.matches?1:Math.min(1,uniforms.form.value+dt/formSeconds);
+        if(forming||turn==='idle'||turn==='face'||posed||faceShift>.00001||Math.abs(oldOpen-shape.open)+Math.abs(oldRound-shape.round)+Math.abs(oldWide-shape.wide)>.00001)render();
       }
       frame=requestAnimationFrame(animate);
     };

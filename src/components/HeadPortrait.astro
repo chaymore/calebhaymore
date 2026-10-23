@@ -21,6 +21,9 @@ const portraitApiUrl = import.meta.env.PUBLIC_PORTRAIT_API_URL ?? '';
     <button type="button" data-chat-toggle aria-expanded="false">Ask Caleb</button>
   </div>
   <p class="portrait-hint">Drag to turn</p>
+  <div class="portrait-view" role="group" aria-label="Portrait style">
+    <button type="button" data-view="dots" aria-pressed="true">dots</button><button type="button" data-view="ascii" aria-pressed="false">ascii</button>
+  </div>
   <noscript><p class="no-script">Enable JavaScript to explore Caleb’s 3D portrait.</p></noscript>
 </section>
 <style>
@@ -36,6 +39,9 @@ const portraitApiUrl = import.meta.env.PUBLIC_PORTRAIT_API_URL ?? '';
   button:disabled { opacity:.4; cursor:wait; }
   button:hover, button:focus-visible { color: #111; }
   .head-portrait[data-attention="front"] .portrait-hint { visibility: hidden; }
+  .portrait-view { position: absolute; left: max(4px, env(safe-area-inset-left, 0px)); bottom: max(0px, env(safe-area-inset-bottom, 0px)); z-index: 3; display: flex; }
+  .portrait-view button { padding: 8px 6px; }
+  .portrait-view button[aria-pressed="true"] { color: #111; text-decoration: underline; text-underline-offset: 3px; }
   .portrait-hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); margin: 0; color: #aaa; font: 9px/1 ui-monospace, monospace; letter-spacing: .07em; pointer-events: none; }
   .portrait-status, .no-script { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #888; font: 11px ui-monospace, monospace; }
   [hidden] { display: none !important; }

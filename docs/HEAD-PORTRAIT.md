@@ -2,7 +2,7 @@
 
 Reconstructed locally from Caleb’s supplied 24.94-second orbit video, IMG_6219.MOV, using 100 frames and Apple RealityKit Object Capture. The September 2026 revision restores the chin, neck, collar, and shoulders from the same scan.
 
-The portrait uses 165,605 black stipples on white. The entire bust uses continuous surface sampling. Texture luminance and surface lighting subtly control dot size rather than gray color. An invisible surface occludes rear-facing points. The lower chest fades through decreasing point density. ASCII remains an optional rendering mode.
+The portrait uses 165,605 black stipples on white. The entire bust uses continuous surface sampling. Texture luminance and surface lighting subtly control dot size rather than gray color. An invisible surface occludes rear-facing points. The lower chest fades through decreasing point density. The **dots / ascii** switch (or `?view=ascii`) redraws the same rig as text: the points render as gray discs into an off-screen tone image, and a fullscreen shader cuts it into character cells drawn from the ramp ` .:-=+*#%@`. Mouth, blinks, and gaze still read through the glyphs. On load the dots fly in from a loose cloud for about two seconds; reduced motion and `?mouth` skip it.
 
 Visual reference: [Phantom’s 3D face particle system](https://tympanus.net/codrops/2025/06/30/invisible-forces-the-making-of-phantom-lands-interactive-grid-and-3d-face-particle-system/), particularly its use of contrast to retain facial features. This implementation uses Caleb’s own scan and original rendering code.
 
