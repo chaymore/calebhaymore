@@ -20,7 +20,7 @@ const description = 'Book a 15 or 30 minute call with Caleb Haymore.';
 
     <section class="bk-card" id="booker" data-api={apiUrl} data-email={site.email} data-step="pick" aria-label="Scheduler">
       <aside class="bk-meta">
-        <img class="bk-avatar" src="/caleb-portrait.jpg" alt="" width="56" height="56" />
+        <img class="bk-avatar" src="/calendar-avatar.jpg" alt="" width="56" height="56" />
         <p class="bk-host">Caleb Haymore</p>
         <h2 class="bk-title">Quick call</h2>
 
@@ -885,12 +885,44 @@ const description = 'Book a 15 or 30 minute call with Caleb Haymore.';
 
   // ---- events ----
 
+  const MAJOR_ZONES: [string, string][] = [
+    ['Pacific/Honolulu', 'Hawaii'],
+    ['America/Anchorage', 'Alaska'],
+    ['America/Los_Angeles', 'Pacific Time'],
+    ['America/Phoenix', 'Arizona'],
+    ['America/Denver', 'Mountain Time'],
+    ['America/Chicago', 'Central Time'],
+    ['America/New_York', 'Eastern Time'],
+    ['America/Sao_Paulo', 'São Paulo'],
+    ['UTC', 'UTC'],
+    ['Europe/London', 'London'],
+    ['Europe/Paris', 'Central Europe'],
+    ['Asia/Dubai', 'Dubai'],
+    ['Asia/Kolkata', 'India'],
+    ['Asia/Shanghai', 'China'],
+    ['Asia/Singapore', 'Singapore'],
+    ['Asia/Tokyo', 'Japan'],
+    ['Australia/Sydney', 'Sydney'],
+  ];
+
+  // Offsets in January and July, so two zones only match when their daylight time rules match too.
+  const offsets = (zone: string) => [0, 6].map(month => {
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+        .formatToParts(new Date(Date.UTC(new Date().getUTCFullYear(), month, 15)))
+        .find(part => part.type === 'timeZoneName')?.value ?? '';
+    } catch { return ''; }
+  }).join();
+
   function fillTimeZones() {
-    let zones: string[] = [];
-    try { zones = (Intl as unknown as { supportedValuesOf(key: string): string[] }).supportedValuesOf('timeZone'); } catch { /* old browsers */ }
-    if (!zones.length) zones = ['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York', 'Europe/London', 'UTC'];
-    if (!zones.includes(state.timeZone)) zones.unshift(state.timeZone);
-    tzSelect.replaceChildren(...zones.map(zone => new Option(zone.replaceAll('_', ' ').replace('/', ' / '), zone, false, zone === state.timeZone)));
+    const zones = [...MAJOR_ZONES];
+    if (!zones.some(([zone]) => zone === state.timeZone)) {
+      // Visitors outside the list see the major zone with the same clock (Boise → Mountain Time), or their own zone at the top.
+      const match = zones.find(([zone]) => offsets(zone) === offsets(state.timeZone));
+      if (match) state.timeZone = match[0];
+      else zones.unshift([state.timeZone, state.timeZone.split('/').pop()!.replaceAll('_', ' ')]);
+    }
+    tzSelect.replaceChildren(...zones.map(([zone, label]) => new Option(label, zone, false, zone === state.timeZone)));
   }
 
   document.querySelectorAll<HTMLButtonElement>('.bk-durations button').forEach(button => {
