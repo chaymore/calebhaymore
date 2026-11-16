@@ -14,6 +14,7 @@ export interface Hotspot {
 interface Manifest {
   groups: Record<string, { texture: string; size: number }>;
   live: string[];
+  model?: string;
   outside?: { texture: string; eye: [number, number, number]; distance: number; width: number; height: number };
 }
 
@@ -109,7 +110,12 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
   async function load() {
     const manifest: Manifest = await (await fetch(`${base}manifest.json`)).json();
     const texLoader = new THREE.TextureLoader();
-    const gltf = await new GLTFLoader().loadAsync(`${base}room.glb`);
+    // Some hosts cannot serve .glb files. There the model ships as base64 inside a JSON file.
+    const model = manifest.model ?? 'room.glb';
+    const loader = new GLTFLoader();
+    const gltf = model.endsWith('.json')
+      ? await loader.parseAsync(Uint8Array.from(atob((await (await fetch(base + model)).json()).glb), (c) => c.charCodeAt(0)).buffer, base)
+      : await loader.loadAsync(base + model);
     const jobs: Promise<unknown>[] = [];
     gltf.scene.traverse((o) => {
       const m = o as THREE.Mesh;
