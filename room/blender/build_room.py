@@ -14,6 +14,10 @@ ap.add_argument("--samples", type=int, default=64)
 ap.add_argument("--res", type=int, default=1280)
 ap.add_argument("--views", default="north,east,south,west")
 ap.add_argument("--blend", action="store_true")
+ap.add_argument("--bake", action="store_true", help="bake light into one texture per group and export room.glb")
+ap.add_argument("--bake-res", type=int, default=2048)
+ap.add_argument("--bake-samples", type=int, default=48)
+ap.add_argument("--only", default="", help="comma list of groups to bake")
 args = ap.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])
 
 R = random.Random(7)
@@ -942,3 +946,110 @@ if args.stills:
         bpy.ops.render.render(write_still=True)
         print("RENDERED", v, flush=True)
 print("OBJECTS", len(bpy.data.objects))
+
+
+# ----------------------------------------------------------------------------- bake and export
+# Materials the website draws itself, so they stay out of the baked textures.
+LIVE = {"mirror_glass": "live_mirror", "laptop_screen": "live_screen", "racket_strings": "live_strings"}
+BAKE_SIZE = {"room": 2, "bookshelf": 2}        # multiplier on --bake-res
+
+
+def bake_and_export():
+    import json, time
+    view = bpy.context.view_layer
+    groups = {}
+    live = []
+    for ob in list(scene.objects):
+        if ob.type != "MESH":
+            continue
+        mname = ob.data.materials[0].name if ob.data.materials else ""
+        if mname in LIVE:
+            ob.name = LIVE[mname] + "_" + ob.get("group", "room")
+            live.append(ob)
+            continue
+        groups.setdefault(ob.get("group", "room"), []).append(ob)
+    merged = {}
+    for g, obs in groups.items():
+        bpy.ops.object.select_all(action="DESELECT")
+        for ob in obs:
+            ob.select_set(True)
+        view.objects.active = obs[0]
+        bpy.ops.object.join()
+        m = view.objects.active
+        m.name = g
+        m.data.name = g
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        merged[g] = m
+        print("JOINED", g, len(m.data.polygons), flush=True)
+    only = [x for x in args.only.split(",") if x]
+    manifest = {"groups": {}, "live": [o.name for o in live]}
+    scene.cycles.samples = args.bake_samples
+    scene.render.bake.margin = 6
+    scene.render.bake.use_clear = True
+    for g, m in merged.items():
+        if g == "outside":
+            continue
+        t0 = time.time()
+        bpy.ops.object.select_all(action="DESELECT")
+        m.select_set(True)
+        view.objects.active = m
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0015, area_weight=0.0, scale_to_bounds=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        res = args.bake_res * BAKE_SIZE.get(g, 1)
+        manifest["groups"][g] = {"texture": f"{g}.jpg", "size": res, "triangles": sum(len(p.vertices) - 2 for p in m.data.polygons)}
+        print("UV", g, round(time.time() - t0, 1), flush=True)
+        if only and g not in only:
+            continue
+        img = bpy.data.images.new("bake_" + g, res, res, alpha=False)
+        for slot in m.material_slots:
+            nt = slot.material.node_tree
+            n = nt.nodes.get("BAKE") or nt.nodes.new("ShaderNodeTexImage")
+            n.name = "BAKE"
+            n.image = img
+            nt.nodes.active = n
+        bpy.ops.object.bake(type="COMBINED")
+        scene.render.image_settings.file_format = "JPEG"
+        scene.render.image_settings.quality = 90
+        img.save_render(os.path.join(args.out, f"{g}.jpg"), scene=scene)   # applies the view transform (AgX, exposure)
+        print("BAKED", g, res, round(time.time() - t0, 1), flush=True)
+    # export geometry only; the website applies the baked textures itself
+    for g, m in merged.items():
+        m.data.materials.clear()
+        if g == "outside":
+            continue
+    bpy.ops.object.select_all(action="DESELECT")
+    for ob in list(merged.values()) + live:
+        if ob.name != "outside":
+            ob.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=os.path.join(args.out, "room.glb"), use_selection=True, export_yup=True,
+                              export_apply=True, export_materials="NONE", export_normals=True, export_texcoords=True,
+                              export_draco_mesh_compression_enable=False)
+    # the view outside: one picture taken from the middle of the room, shown on a plane beyond the window
+    for ob in scene.objects:
+        if ob.type == "MESH":
+            ob.hide_render = ob.name != "outside"
+    cd = bpy.data.cameras.new("plate")
+    cd.lens = 18
+    cd.sensor_width = 36
+    cam = bpy.data.objects.new("plate", cd)
+    cam.location = (0, 0, 1.4)
+    cam.rotation_euler = Vector((1, 0, 0)).to_track_quat("-Z", "Y").to_euler()
+    COL.objects.link(cam)
+    scene.camera = cam
+    scene.cycles.samples = 48
+    scene.render.resolution_x = 2048
+    scene.render.resolution_y = 1280
+    scene.render.image_settings.file_format = "JPEG"
+    scene.render.image_settings.quality = 90
+    scene.render.filepath = os.path.join(args.out, "outside.jpg")
+    bpy.ops.render.render(write_still=True)
+    dist = 14.0
+    manifest["outside"] = {"texture": "outside.jpg", "eye": [0, 0, 1.4], "distance": dist, "width": 2 * dist * 18 / 18, "height": 2 * dist * 0.625}
+    json.dump(manifest, open(os.path.join(args.out, "manifest.json"), "w"), indent=1)
+    print("EXPORTED", flush=True)
+
+
+if args.bake:
+    bake_and_export()

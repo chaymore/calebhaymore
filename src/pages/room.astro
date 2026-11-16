@@ -1,0 +1,184 @@
+---
+// The 3D room. Work in progress: this page becomes the home page when the room is ready.
+import Layout from '../layouts/Layout.astro';
+import { site, competitions } from '../data/site';
+import { projects } from '../data/projects';
+import type { Hotspot } from '../scripts/room/main';
+
+const base = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/room/`;
+const live = projects.filter((p) => !p.draft).slice(0, 5);
+
+// Camera positions use the scene's axes: x east, y north, z up, in metres.
+const hotspots: Hotspot[] = [
+  { group: 'bookshelf', label: 'Bookshelf: writing and research', eye: [0, 0.1, 1.3], look: [0, 2.2, 1.2] },
+  { group: 'nook', label: 'Window seat: about me', eye: [0.5, 0, 1.35], look: [2.4, 0, 1.15] },
+  { group: 'desk', label: 'Desk: projects', eye: [0.15, -0.35, 1.3], look: [0.1, -2.2, 1.05] },
+  { group: 'door', label: 'Door: contact', eye: [-0.8, -1.4, 1.35], look: [-2.4, -1.5, 1.15] },
+  { group: 'mirror', label: 'Mirror: ask me something', eye: [-0.9, 0.02, 1.2], look: [-2.4, 0.02, 0.95] },
+  { group: 'rack', label: 'Clothing rack: what I do', eye: [-0.8, 1.24, 1.2], look: [-2.4, 1.24, 1.0] },
+];
+---
+<Layout title="Caleb Haymore" description="Caleb Haymore's room. Look around: the bookshelf, the desk, the window seat, the mirror, the clothing rack, and the door each open part of the site." minimal bodyClass="room-page">
+  <main id="room" class="room" aria-label="Caleb Haymore's room">
+    <h1 class="sr-only">{site.name}</h1>
+    <canvas aria-label="A small room at golden hour with a bookshelf, a window seat, a desk, a door, a mirror, and a clothing rack. Each one opens part of the site."></canvas>
+    <p class="room-loading" data-room-loading>Opening the room</p>
+    <p class="room-label" data-room-label hidden></p>
+
+    <header class="room-top">
+      <a class="room-name" href="/">{site.name}</a>
+      <nav aria-label="Objects in the room">
+        {hotspots.map((h) => <button type="button" data-open={h.group}>{h.label.split(':')[1].trim()}</button>)}
+      </nav>
+    </header>
+
+    <footer class="room-walls" aria-label="Turn to a wall">
+      <button type="button" data-turn="-1" aria-label="Turn left">‹</button>
+      <button type="button" data-wall="north">Bookshelf</button>
+      <button type="button" data-wall="east">Window</button>
+      <button type="button" data-wall="south">Desk</button>
+      <button type="button" data-wall="west">Door</button>
+      <button type="button" data-turn="1" aria-label="Turn right">›</button>
+    </footer>
+
+    <section class="room-panel" data-panel="bookshelf" hidden aria-label="Writing and research">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Bookshelf:</p>
+      <h2>Writing and research</h2>
+      <p>Essays, research notes, and the prompt I use to build my own knowledge wiki.</p>
+      <ul>
+        <li><a href="/writing">Writing ↗</a></li>
+        <li><a href="/research">Research ↗</a></li>
+        <li><a href="/context">Context ↗</a></li>
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="nook" hidden aria-label="About">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Window seat:</p>
+      <h2>About me</h2>
+      <p>{site.intro}</p>
+      <ul>
+        <li><a href="/about">The longer version ↗</a></li>
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="desk" hidden aria-label="Projects">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Desk:</p>
+      <h2>Projects</h2>
+      <ul class="room-list">
+        {live.map((p) => (
+          <li>
+            <a href={`/projects#${p.slug}`}>{p.title} ↗</a>
+            <span>{p.summary}</span>
+          </li>
+        ))}
+      </ul>
+      <ul>
+        <li><a href="/projects">All projects ↗</a></li>
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="door" hidden aria-label="Contact">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Door:</p>
+      <h2>Get in touch</h2>
+      <p>Email is the best way to reach me: <a href={`mailto:${site.email}`}>{site.email}</a></p>
+      <ul>
+        <li><a href="/calendar">Book a call ↗</a></li>
+        {site.socialLinks.map((l) => <li><a href={l.href} rel="noopener">{l.label} ↗</a></li>)}
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="mirror" hidden aria-label="Ask Caleb">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Mirror:</p>
+      <h2>Ask me something</h2>
+      <p>The mirror holds a 3D portrait of me that answers questions out loud. It is moving into this room. For now it lives on its own page.</p>
+      <ul>
+        <li><a href="/">Talk to the portrait ↗</a></li>
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="rack" hidden aria-label="What I do">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Clothing rack:</p>
+      <h2>What I do</h2>
+      <ul class="room-list">
+        <li><b>Finance student</b><span>BYU. I care most about where finance meets law.</span></li>
+        <li><b>Case competitor</b><span>{competitions.filter((c) => c.placement).map((c) => `${c.placement}, ${c.name} ${c.year}`).join('. ')}.</span></li>
+        <li><b>Tennis player</b><span>The racket by the mirror gets more use than the blazer.</span></li>
+        <li><b>Sci-fi reader</b><span>Most of the paperbacks on the shelf.</span></li>
+      </ul>
+      <ul>
+        <li><a href="/competitions">Competitions ↗</a></li>
+      </ul>
+    </section>
+
+    <noscript>
+      <p class="room-noscript">This room needs JavaScript. The site also works without it: <a href="/about">About</a>, <a href="/projects">Projects</a>, <a href="/writing">Writing</a>, <a href="/contact">Contact</a>.</p>
+    </noscript>
+  </main>
+</Layout>
+
+<script define:vars={{ base, hotspots }}>
+  window.__room = { base, hotspots };
+</script>
+<script>
+  import { startRoom } from '../scripts/room/main';
+  const cfg = (window as any).__room;
+  startRoom(document.getElementById('room')!, cfg.base, cfg.hotspots);
+</script>
+
+<style is:global>
+  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@300;400&display=swap');
+  html:has(.room-page), body.room-page { background: #000; }
+  body.room-page { margin: 0; overflow: hidden; background-image: none; }
+  .room {
+    --black: #000; --sand: #F6F5EF; --gray: #AFAFAF;
+    --sans: "ABC Diatype", "Geist", "Helvetica Neue", Arial, sans-serif;
+    --mono: "ABC Diatype Mono", "Geist Mono", ui-monospace, monospace;
+    position: relative; width: 100%; height: 100svh; overflow: hidden; color: var(--sand);
+    font: 400 1rem/1.3 var(--sans); letter-spacing: -0.02em;
+  }
+  .room canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; opacity: 0; transition: opacity 1.2s ease; }
+  .room[data-ready] canvas { opacity: 1; }
+  .room .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .room-loading, .room-label, .room-top, .room-walls, .room-close, .room .eyebrow { font-family: var(--mono); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.02em; }
+  .room-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--gray); }
+  .room-label { position: absolute; left: 0; top: 0; margin: 0; padding: 6px 9px; background: var(--black); color: var(--sand); pointer-events: none; white-space: nowrap; z-index: 3; }
+  .room-top { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 18px 2vw; pointer-events: none; }
+  .room-top > * { pointer-events: auto; }
+  .room-top nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 18px; }
+  .room a { color: inherit; text-decoration: none; }
+  .room a:hover, .room button:hover { color: var(--gray); }
+  .room button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .room-name, .room-top button { text-shadow: 0 0 12px rgba(0,0,0,.65); }
+  .room-walls { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; background: var(--black); border: 1px solid var(--sand); }
+  .room-walls button { padding: 10px 14px; border-left: 1px solid var(--sand); }
+  .room-walls button:first-child { border-left: 0; }
+  .room-walls button[aria-pressed="true"] { background: var(--sand); color: var(--black); }
+  .room-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 100%); padding: 64px 28px 28px; background: var(--black); color: var(--sand); overflow-y: auto; z-index: 4; border-left: 1px solid var(--sand); }
+  .room-panel h2 { margin: 0 0 0.7rem; font-weight: 400; font-size: clamp(1.75rem, 1.44vw + 1rem, 2.3rem); line-height: 1.14; letter-spacing: -0.03rem; }
+  .room-panel .eyebrow { margin: 0 0 0.7rem; font-weight: 300; color: var(--gray); }
+  .room-panel p { margin: 0 0 1rem; font-size: 1.1rem; }
+  .room-panel p a { border-bottom: 1px solid var(--gray); }
+  .room-panel ul { list-style: none; margin: 1.4rem 0 0; padding: 0; border-top: 1px solid var(--sand); }
+  .room-panel ul li { padding: 12px 0; border-bottom: 1px solid var(--sand); }
+  .room-panel ul:not(.room-list) a { font-family: var(--mono); text-transform: uppercase; font-size: 0.875rem; letter-spacing: 0.02em; display: block; }
+  .room-list li { display: grid; gap: 4px; }
+  .room-list b, .room-list a { font-weight: 400; font-size: 1.25rem; }
+  .room-list span { color: var(--gray); }
+  .room-close { position: absolute; top: 18px; right: 28px; }
+  .room-noscript { position: absolute; inset: auto 2vw 80px; margin: 0; }
+  @media (max-width: 767px) {
+    .room-top { padding: 14px 6vw; }
+    .room-top nav { display: none; }
+    .room-walls { width: calc(100% - 12vw); bottom: 14px; }
+    .room-walls button { flex: 1 1 auto; padding: 12px 4px; font-size: 0.7rem; }
+    .room-panel { top: auto; left: 0; width: 100%; max-height: 62svh; padding: 54px 6vw 24px; border-left: 0; border-top: 1px solid var(--sand); }
+    .room-close { right: 6vw; }
+  }
+  @media (prefers-reduced-motion: reduce) { .room canvas { transition: none; } }
+</style>
