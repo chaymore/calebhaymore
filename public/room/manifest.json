@@ -1,0 +1,60 @@
+{
+ "groups": {
+  "room": {
+   "texture": "room.jpg",
+   "size": 3072,
+   "triangles": 1524
+  },
+  "window": {
+   "texture": "window.jpg",
+   "size": 1536,
+   "triangles": 1080
+  },
+  "bookshelf": {
+   "texture": "bookshelf.jpg",
+   "size": 3072,
+   "triangles": 44364
+  },
+  "nook": {
+   "texture": "nook.jpg",
+   "size": 1536,
+   "triangles": 6512
+  },
+  "desk": {
+   "texture": "desk.jpg",
+   "size": 1536,
+   "triangles": 16064
+  },
+  "door": {
+   "texture": "door.jpg",
+   "size": 1536,
+   "triangles": 3348
+  },
+  "mirror": {
+   "texture": "mirror.jpg",
+   "size": 1536,
+   "triangles": 108
+  },
+  "rack": {
+   "texture": "rack.jpg",
+   "size": 1536,
+   "triangles": 8488
+  }
+ },
+ "live": [
+  "live_screen_desk",
+  "live_mirror_mirror",
+  "live_strings_rack"
+ ],
+ "outside": {
+  "texture": "outside.jpg",
+  "eye": [
+   0,
+   0,
+   1.4
+  ],
+  "distance": 14.0,
+  "width": 28.0,
+  "height": 17.5
+ }
+}

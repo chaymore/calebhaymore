@@ -1,6 +1,7 @@
 // The room: loads the baked scene and lets the visitor turn to each wall and open the objects.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 
 export interface Hotspot {
   group: string;
@@ -128,11 +129,26 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
         m.userData.group = m.name;
         meshes.push(m);
       } else if (m.name.startsWith('live_mirror')) {
-        m.material = new THREE.MeshBasicMaterial({ color: 0x9a8f7c });
+        // a real planar reflection, laid just in front of the glass
+        m.geometry.computeBoundingBox();
+        const size = m.geometry.boundingBox!.getSize(new THREE.Vector3());
+        const glass = new Reflector(new THREE.PlaneGeometry(size.z, size.y), {
+          textureWidth: 512, textureHeight: 1024, color: 0xd8d2c4, clipBias: 0.003,
+        });
+        glass.rotation.y = Math.PI / 2;
+        glass.position.x = size.x / 2 + 0.002;
+        m.add(glass);
+        m.material = new THREE.MeshBasicMaterial({ color: 0x15120e });
         m.userData.group = 'mirror';
         meshes.push(m);
       } else if (m.name.startsWith('live_screen')) {
-        m.material = new THREE.MeshBasicMaterial({ color: 0xdfe8ff });
+        m.geometry.computeBoundingBox();
+        const size = m.geometry.boundingBox!.getSize(new THREE.Vector3());
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(size.x, size.y), new THREE.MeshBasicMaterial({ map: screenTexture() }));
+        face.rotation.y = Math.PI;
+        face.position.z = -size.z / 2 - 0.0008;
+        m.add(face);
+        m.material = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
         m.userData.group = 'desk';
         meshes.push(m);
       } else if (m.name.startsWith('live_strings')) {
@@ -156,6 +172,30 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     loading.hidden = true;
     root.dataset.ready = 'true';
     needsFrame = true;
+  }
+
+  /** What the laptop shows: a plain page in the site's own type. */
+  function screenTexture() {
+    const c = document.createElement('canvas');
+    c.width = 1024; c.height = 660;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#F6F5EF'; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000';
+    g.font = '300 26px ui-monospace, monospace';
+    g.fillText('PROJECTS:', 64, 96);
+    g.fillRect(64, 122, c.width - 128, 2);
+    g.font = '400 84px Helvetica, Arial, sans-serif';
+    g.fillText('Things I have built', 60, 236);
+    g.font = '400 30px ui-monospace, monospace';
+    ['01  THIS ROOM', '02  NIGHTLOCK', '03  MILO', '04  SCRIPTURE HIGHLIGHTER'].forEach((t, i) => {
+      g.fillRect(64, 300 + i * 74, c.width - 128, 1);
+      g.fillText(t, 64, 350 + i * 74);
+      g.fillText('\u2197', c.width - 100, 350 + i * 74);
+    });
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
   }
 
   // ---- pointer: hover labels, click to open, drag or swipe to turn

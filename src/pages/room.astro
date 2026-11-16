@@ -155,6 +155,7 @@ const hotspots: Hotspot[] = [
   .room a:hover, .room button:hover { color: var(--gray); }
   .room button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
   .room-name, .room-top button { text-shadow: 0 0 12px rgba(0,0,0,.65); }
+  .room[data-open]:not([data-open=""]) .room-top nav { visibility: hidden; }
   .room-walls { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; background: var(--black); border: 1px solid var(--sand); }
   .room-walls button { padding: 10px 14px; border-left: 1px solid var(--sand); }
   .room-walls button:first-child { border-left: 0; }
