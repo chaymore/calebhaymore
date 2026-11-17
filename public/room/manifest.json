@@ -32,7 +32,7 @@
   },
   "piano__detail": {
    "texture": "piano__detail.jpg",
-   "size": 1536,
+   "size": 3072,
    "triangles": 6
   },
   "nook": {

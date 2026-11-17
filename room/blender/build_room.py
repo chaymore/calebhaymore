@@ -656,7 +656,7 @@ def build_nook():
     box("piano_felt", (0.012, kw, 0.012), (xf - 0.082, py, 0.712), flat("felt_red", (0.4, 0.03, 0.03), rough=1), bevel=0)
     box("piano_desk", (0.012, 0.62, 0.24), (xf - 0.03, py, 1.0), ebony, bevel=0.004, rot=(0, 0.16, 0))
     box("piano_desk_ledge", (0.04, 0.62, 0.012), (xf - 0.04, py, 0.875), ebony, bevel=0.003)
-    decal("sheet_music", 0.44, 0.3, (xf - 0.043, py, 1.03), (-0.16, 0, -math.pi / 2), art.sheet_music(0.44, 0.3), rough=0.8)
+    decal("sheet_music", 0.44, 0.3, (xf - 0.043, py, 1.03), (-0.16, 0, -math.pi / 2), art.sheet_music(0.44, 0.3, "City of Stars"), rough=0.8)
     for k in (-1, 0, 1):
         box("piano_pedal", (0.09, 0.03, 0.012), (xf - 0.06, py + k * 0.09, 0.06), M_BRASS, bevel=0.004, rot=(0, -0.15, 0))
     plate_ = art.plate("H A Y M O R E", 0.2, 0.02, "#030303", library.GOLD, "cinzel", 0.6, 0.1)
@@ -712,7 +712,7 @@ def build_nook():
     box("open_book_cover", (0.16, 0.22, 0.006), (tx - 0.02, ty - 0.07, zt + 0.003), book_mat(1), bevel=0.002, rot=(0, 0, 1.2))
     mug(tx + 0.03, ty + 0.1, zt)
     # El Capitan above the chair
-    frame("el_capitan", 0.72, 0.54, (HX - 0.012, -1.25, 1.62), WEST_FACE, M_OAK("x"), M_WHITE, border=0.055, picture=art.el_capitan)
+    frame("el_capitan", 0.72, 0.54, (HX - 0.012, -1.25, 1.62), WEST_FACE, M_OAK("x"), M_WHITE, border=0.055, picture=lambda w, h: art.photo(os.path.join(HERE, "photos", "el-capitan.jpg"), w, h))
     # floor lamp in the south-east corner, over the reader's shoulder
     lx, ly = HX - 0.22, -1.68
     cyl("lamp_base", 0.12, 0.11, 0.025, (lx, ly, 0.0125), M_BRASS)
@@ -1161,7 +1161,7 @@ print("OBJECTS", len(bpy.data.objects))
 # ----------------------------------------------------------------------------- bake and export
 # Materials the website draws itself, so they stay out of the baked textures.
 LIVE = {"mirror_glass": "live_mirror", "laptop_screen": "live_screen", "racket_strings": "live_strings"}
-BAKE_SIZE = {"room": 2, "bookshelf": 2, "bookshelf__detail": 2}        # multiplier on --bake-res
+BAKE_SIZE = {"room": 2, "bookshelf": 2, "bookshelf__detail": 2, "piano__detail": 2}        # multiplier on --bake-res
 
 
 def bake_and_export():

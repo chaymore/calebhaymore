@@ -10,6 +10,7 @@ const live = projects.filter((p) => !p.draft).slice(0, 5);
 
 // Camera positions use the scene's axes: x east, y north, z up, in metres.
 const hotspots: Hotspot[] = [
+  { group: 'piano', label: 'Piano: City of Stars', eye: [0.35, 0.95, 1.3], look: [2.05, 1.02, 0.95] },
   { group: 'bookshelf', label: 'Bookshelf: writing and research', eye: [-0.25, 0.45, 1.48], look: [-0.25, 1.9, 1.46] },
   { group: 'nook', label: 'Reading chair: about me', eye: [0.25, -0.75, 1.35], look: [2.05, -1.1, 1.0] },
   { group: 'desk', label: 'Desk: projects', eye: [-0.25, -0.45, 1.3], look: [-0.3, -1.9, 1.05] },
@@ -98,6 +99,18 @@ const hotspots: Hotspot[] = [
       <p>The mirror holds a 3D portrait of me that answers questions out loud. It is moving into this room. For now it lives on its own page.</p>
       <ul>
         <li><a href="/">Talk to the portrait ↗</a></li>
+      </ul>
+    </section>
+
+    <section class="room-panel" data-panel="piano" hidden aria-label="City of Stars">
+      <button type="button" class="room-close" data-close>[ Close ]</button>
+      <p class="eyebrow">Piano:</p>
+      <h2>City of Stars</h2>
+      <p>The song open on my piano. It is from <i>La La Land</i> (2016), with music by Justin Hurwitz and lyrics by Benj Pasek and Justin Paul.</p>
+      <ul>
+        <li><a href="https://open.spotify.com/search/City%20of%20Stars%20La%20La%20Land" rel="noopener">Listen on Spotify ↗</a></li>
+        <li><a href="https://music.apple.com/us/search?term=City%20of%20Stars%20La%20La%20Land" rel="noopener">Listen on Apple Music ↗</a></li>
+        <li><a href="https://www.youtube.com/results?search_query=City+of+Stars+La+La+Land" rel="noopener">Watch on YouTube ↗</a></li>
       </ul>
     </section>
 

@@ -395,8 +395,9 @@ def piano_keys(w, h):
     return _save(img, key)
 
 
-def sheet_music(w, h):
-    key = f"sheet{w}{h}"
+def sheet_music(w, h, title=""):
+    """Two pages of music on a stand. The notes are random marks, not a transcription of any piece."""
+    key = f"sheet{w}{h}{title}"
     W, H = int(w * 2600), int(h * 2600)
     img = Image.new("RGB", (W, H), (238, 232, 214))
     d = ImageDraw.Draw(img)
@@ -404,8 +405,11 @@ def sheet_music(w, h):
     r = random.Random(3)
     for page in (0, 1):
         x0, x1 = W * (0.05 + 0.5 * page), W * (0.45 + 0.5 * page)
-        for s in range(6):
-            y = H * (0.14 + s * 0.14)
+        if title and page == 0:
+            f = _fit(d, title, "playfair-b", (x1 - x0) * 0.8, H * 0.075)
+            d.text(((x0 + x1) / 2, H * 0.075), title, font=f, fill=(30, 28, 26), anchor="mm")
+        for s in range(6 if not (title and page == 0) else 5):
+            y = H * ((0.14 if not (title and page == 0) else 0.28) + s * 0.14)
             for k in range(5):
                 d.line([x0, y + k * H * 0.014, x1, y + k * H * 0.014], fill=(60, 56, 50), width=1)
             x = x0 + W * 0.02
@@ -467,3 +471,21 @@ def tag(text, w, h, bg="#0c0c0c", fg="#f2f2f2", fname="oswald-b"):
     f = _fit(d, text, fname, W * 0.86, H * 0.7)
     d.text((W / 2, H / 2), text, font=f, fill=rgb(fg), anchor="mm")
     return _save(img, key)
+
+
+def photo(path, w, h, warmth=0.08):
+    """A photo cropped to fill w x h, with a faint warm print tone."""
+    key = f"photo{path}{w}{h}{warmth}"
+    img = Image.open(path).convert("RGB")
+    W, H = int(w * 2400), int(h * 2400)
+    src_r, dst_r = img.width / img.height, W / H
+    if src_r > dst_r:
+        nw = int(img.height * dst_r)
+        img = img.crop(((img.width - nw) // 2, 0, (img.width + nw) // 2, img.height))
+    else:
+        nh = int(img.width / dst_r)
+        top = int((img.height - nh) * 0.35)
+        img = img.crop((0, top, img.width, top + nh))
+    img = img.resize((W, H), Image.LANCZOS)
+    img = Image.blend(img, Image.new("RGB", (W, H), (240, 214, 170)), warmth)
+    return _save(_wear(img, key, 0.4), key)
