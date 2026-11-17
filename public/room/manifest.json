@@ -3,7 +3,7 @@
   "room": {
    "texture": "room.jpg",
    "size": 3072,
-   "triangles": 1524
+   "triangles": 1404
   },
   "window": {
    "texture": "window.jpg",
@@ -13,7 +13,12 @@
   "bookshelf": {
    "texture": "bookshelf.jpg",
    "size": 3072,
-   "triangles": 44364
+   "triangles": 39816
+  },
+  "bookshelf__detail": {
+   "texture": "bookshelf__detail.jpg",
+   "size": 3072,
+   "triangles": 1588
   },
   "nook": {
    "texture": "nook.jpg",
@@ -23,12 +28,17 @@
   "desk": {
    "texture": "desk.jpg",
    "size": 1536,
-   "triangles": 16064
+   "triangles": 16136
+  },
+  "desk__detail": {
+   "texture": "desk__detail.jpg",
+   "size": 1536,
+   "triangles": 24
   },
   "door": {
    "texture": "door.jpg",
    "size": 1536,
-   "triangles": 3348
+   "triangles": 2040
   },
   "mirror": {
    "texture": "mirror.jpg",

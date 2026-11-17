@@ -930,7 +930,7 @@ SUN_TRAVEL = Vector((-1.0, 0.42, -0.26)).normalized()   # direction the sunlight
 def build_outside():
     group("outside")
     # ground far below (the room is on an upper floor) and layered ridges to the east
-    box("ground", (400, 400, 0.2), (150, 0, -6), flat("valley", (0.20, 0.17, 0.09), rough=1), bevel=0)
+    box("ground", (400, 400, 0.2), (150, 0, -6), flat("valley", (0.035, 0.03, 0.022), rough=1), bevel=0)
     layers = [(55, 8, (0.035, 0.03, 0.035)), (85, 15, (0.07, 0.05, 0.07)), (125, 27, (0.14, 0.09, 0.11)), (170, 42, (0.26, 0.16, 0.15))]
     for i, (dist, peak, colr) in enumerate(layers):
         rr = random.Random(20 + i)
@@ -944,7 +944,7 @@ def build_outside():
         pts.append((dist * 1.6, -8))
         prism(f"ridge_{i}", pts, 0.5, (dist, 0, -6), flat(f"ridge_{i}", colr, rough=1), rot=(0, 0, math.pi / 2))
     # trees close to the window
-    for k, (ty, th, tx) in enumerate([(7.5, 6.3, 16), (11.0, 5.6, 22), (-16.0, 5.2, 30), (15.5, 6.6, 34)]):
+    for k, (ty, th, tx) in enumerate([]):
         cyl(f"tree_trunk{k}", 0.18, 0.1, th + 6, (tx, ty, (th + 6) / 2 - 6), flat("bark", (0.07, 0.05, 0.03), rough=1), seg=10)
         sphere(f"tree_crown{k}", 1.9, (tx, ty, th - 1.0), flat("foliage", (0.045, 0.055, 0.02), rough=1), scale=(1, 1, 1.5), seg=14)
 
@@ -1140,6 +1140,8 @@ def bake_and_export():
         print("BAKED", g, res, round(time.time() - t0, 1), flush=True)
     # export geometry only; the website applies the baked textures itself
     for g, m in merged.items():
+        if g == "outside":
+            continue                      # the outside keeps its materials: it is photographed below
         m.data.materials.clear()
         if "bake" in m.data.uv_layers and "UVMap" in m.data.uv_layers:
             m.data.uv_layers.remove(m.data.uv_layers["UVMap"])
