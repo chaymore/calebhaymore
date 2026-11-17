@@ -8,22 +8,42 @@
   "window": {
    "texture": "window.jpg",
    "size": 1536,
-   "triangles": 1080
+   "triangles": 5952
   },
   "bookshelf": {
    "texture": "bookshelf.jpg",
    "size": 3072,
-   "triangles": 39816
+   "triangles": 37764
   },
   "bookshelf__detail": {
    "texture": "bookshelf__detail.jpg",
    "size": 3072,
    "triangles": 1588
   },
+  "window__detail": {
+   "texture": "window__detail.jpg",
+   "size": 1536,
+   "triangles": 3040
+  },
+  "piano": {
+   "texture": "piano.jpg",
+   "size": 1536,
+   "triangles": 6768
+  },
+  "piano__detail": {
+   "texture": "piano__detail.jpg",
+   "size": 1536,
+   "triangles": 6
+  },
   "nook": {
    "texture": "nook.jpg",
    "size": 1536,
-   "triangles": 6512
+   "triangles": 2696
+  },
+  "nook__detail": {
+   "texture": "nook__detail.jpg",
+   "size": 1536,
+   "triangles": 2
   },
   "desk": {
    "texture": "desk.jpg",
@@ -48,7 +68,12 @@
   "rack": {
    "texture": "rack.jpg",
    "size": 1536,
-   "triangles": 8488
+   "triangles": 9824
+  },
+  "rack__detail": {
+   "texture": "rack__detail.jpg",
+   "size": 1536,
+   "triangles": 8
   }
  },
  "live": [

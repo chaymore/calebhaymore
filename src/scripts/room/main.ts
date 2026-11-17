@@ -161,7 +161,7 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
         m.userData.group = 'desk';
         meshes.push(m);
       } else if (m.name.startsWith('live_strings')) {
-        m.material = new THREE.MeshBasicMaterial({ color: 0xe8e2d0, transparent: true, opacity: 0.35 });
+        m.material = new THREE.MeshBasicMaterial({ color: 0xe8e2d0, transparent: true, opacity: 0.16, depthWrite: false });
       }
     });
     if (manifest.outside) {

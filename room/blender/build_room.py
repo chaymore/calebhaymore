@@ -656,11 +656,11 @@ def build_nook():
     box("piano_felt", (0.012, kw, 0.012), (xf - 0.082, py, 0.712), flat("felt_red", (0.4, 0.03, 0.03), rough=1), bevel=0)
     box("piano_desk", (0.012, 0.62, 0.24), (xf - 0.03, py, 1.0), ebony, bevel=0.004, rot=(0, 0.16, 0))
     box("piano_desk_ledge", (0.04, 0.62, 0.012), (xf - 0.04, py, 0.875), ebony, bevel=0.003)
-    decal("sheet_music", 0.44, 0.3, (xf - 0.045, py, 1.03), (0.16, 0, -math.pi / 2), art.sheet_music(0.44, 0.3), rough=0.8)
+    decal("sheet_music", 0.44, 0.3, (xf - 0.043, py, 1.03), (-0.16, 0, -math.pi / 2), art.sheet_music(0.44, 0.3), rough=0.8)
     for k in (-1, 0, 1):
         box("piano_pedal", (0.09, 0.03, 0.012), (xf - 0.06, py + k * 0.09, 0.06), M_BRASS, bevel=0.004, rot=(0, -0.15, 0))
     plate_ = art.plate("H A Y M O R E", 0.2, 0.02, "#030303", library.GOLD, "cinzel", 0.6, 0.1)
-    decal("piano_name", 0.2, 0.02, (xf - 0.0235, py, 0.79), (0.12, 0, -math.pi / 2), plate_, rough=0.3)
+    decal("piano_name", 0.2, 0.02, (xf - 0.0245, py, 0.79), (-0.12, 0, -math.pi / 2), plate_, rough=0.3)
     # on top: a metronome, a framed photo, a small lamp
     prism("metronome", [(-0.045, 0), (0.045, 0), (0.016, 0.2), (-0.016, 0.2)], 0.09, (xb, py + 0.45, ph + 0.025), M_WALNUT("z"), bevel=0.004)
     box("metronome_arm", (0.004, 0.004, 0.15), (xb - 0.047, py + 0.45, ph + 0.11), M_BRASS, bevel=0, rot=(0.25, 0, 0))
@@ -819,11 +819,11 @@ def build_desk():
     frame("cert_b", 0.34, 0.27, (dx + 0.72, wy_, 1.38), (0, 0, math.pi), flat("gilt", (0.6, 0.45, 0.2), rough=0.4, metal=1), cert,
           picture=lambda w, h: art.certificate(w, h, ["BALLARD CENTER", "Third Place", "Ballard Center Case Competition", "2025"], seal=(120, 70, 40)))
     felt = cloth("pennant_navy", (0.04, 0.07, 0.2), 0.6)
-    prism("pennant", [(0, 0.11), (0.62, 0), (0, -0.11)], 0.004, (dx + 0.62, wy_ + 0.002, 2.2), felt, rot=(0, 0.06, 0))
-    box("pennant_band", (0.03, 0.005, 0.22), (dx + 0.636, wy_ + 0.003, 2.199), cloth("pennant_cream", (0.8, 0.72, 0.55)), bevel=0, rot=(0, 0.06, 0))
+    prism("pennant", [(0, 0.11), (0.62, 0), (0, -0.11)], 0.004, (dx + 0.26, wy_ + 0.002, 2.24), felt, rot=(0, 0.06, 0))
+    box("pennant_band", (0.03, 0.005, 0.22), (dx + 0.276, wy_ + 0.003, 2.239), cloth("pennant_cream", (0.8, 0.72, 0.55)), bevel=0, rot=(0, 0.06, 0))
     ckx = 0.86
     cyl("clock_rim", 0.16, 0.16, 0.04, (ckx, wy_ + 0.01, 2.17), M_BRASS, rot=(math.pi / 2, 0, 0), seg=40)
-    cyl("clock_face", 0.145, 0.145, 0.042, (ckx, wy_ + 0.011, 2.17), flat("clock_face", (0.86, 0.82, 0.7), rough=0.6), rot=(math.pi / 2, 0, 0), seg=40)
+    cyl("clock_face", 0.145, 0.145, 0.042, (ckx, wy_ + 0.011, 2.17), flat("clock_face", art.lin("#eae2cc"), rough=0.6), rot=(math.pi / 2, 0, 0), seg=40)
     decal("clock_numbers", 0.2, 0.2, (ckx, wy_ + 0.0326, 2.17), SOUTH_WALL, art.clock_face(0.2))
     box("clock_hand_h", (0.012, 0.004, 0.08), (ckx + 0.02, wy_ + 0.034, 2.195), M_BLACK, bevel=0, rot=(0, 0.7, 0))
     box("clock_hand_m", (0.008, 0.004, 0.12), (ckx - 0.035, wy_ + 0.036, 2.205), M_BLACK, bevel=0, rot=(0, -0.9, 0))
@@ -1212,7 +1212,20 @@ def bake_and_export():
         m.data.uv_layers.active = bake_uv
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.004 if g.endswith("__detail") else 0.0015, area_weight=0.0, scale_to_bounds=False)
+        if g.endswith("__detail"):
+            # Pictures already have clean UVs. Copy them, size each island by its real area, and pack.
+            bpy.ops.object.mode_set(mode="OBJECT")
+            buf = [0.0] * (2 * len(m.data.loops))
+            m.data.uv_layers["UVMap"].data.foreach_get("uv", buf)
+            m.data.uv_layers["bake"].data.foreach_set("uv", buf)
+            m.data.uv_layers.active = m.data.uv_layers["bake"]
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.select_all(action="SELECT")
+            bpy.ops.uv.select_all(action="SELECT")
+            bpy.ops.uv.average_islands_scale()
+            bpy.ops.uv.pack_islands(margin=0.004)
+        else:
+            bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0015, area_weight=0.0, scale_to_bounds=False)
         bpy.ops.object.mode_set(mode="OBJECT")
         res = args.bake_res * BAKE_SIZE.get(g, 1)
         manifest["groups"][g] = {"texture": f"{g}.jpg", "size": res, "triangles": sum(len(p.vertices) - 2 for p in m.data.polygons)}
