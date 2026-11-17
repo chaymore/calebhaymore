@@ -20,8 +20,13 @@ ap.add_argument("--bake-samples", type=int, default=48)
 ap.add_argument("--only", default="", help="comma list of groups to bake")
 args = ap.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import art, library
+art.CACHE = os.path.join(os.path.abspath(args.out), "art")
+
 R = random.Random(7)
-W, D, H = 4.8, 4.4, 2.7            # room: x width, y depth, height
+W, D, H = 4.1, 3.8, 2.6            # room: x width, y depth, height
 HX, HY = W / 2, D / 2
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -263,6 +268,86 @@ def group(name):
     GROUP[0] = name
 
 
+def image_mat(path, rough=0.6):
+    key = ("img", path, rough)
+    if key in _cache:
+        return _cache[key]
+    m, nt, b = _principled("img_" + os.path.basename(path))
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.load(path)
+    nt.links.new(tex.outputs["Color"], b.inputs["Base Color"])
+    _set(b, "Roughness", rough)
+    _cache[key] = m
+    return m
+
+
+def decal(name, w, h, loc, rot, path, rough=0.6):
+    """A flat picture, w wide and h tall, facing local -Y. Decals bake into their own sharp texture."""
+    bm = bmesh.new()
+    vs = [bm.verts.new(c) for c in ((-w / 2, 0, -h / 2), (w / 2, 0, -h / 2), (w / 2, 0, h / 2), (-w / 2, 0, h / 2))]
+    f = bm.faces.new(vs)
+    uv = bm.loops.layers.uv.new("UVMap")
+    for loop, co in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        loop[uv].uv = co
+    ob = _finish(name, bm, image_mat(path, rough), loc, rot)
+    ob["detail"] = 1
+    return ob
+
+
+def skinned_ball(name, r, loc, rot, path):
+    bm = bmesh.new()
+    bm.loops.layers.uv.new("UVMap")
+    bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=20, radius=r, calc_uvs=True)
+    for f in bm.faces:
+        f.smooth = True
+    ob = _finish(name, bm, image_mat(path, 0.7), loc, rot)
+    ob["detail"] = 1
+    return ob
+
+
+UP = lambda yaw=0.0: (-math.pi / 2, 0, math.pi + yaw)      # decal lying flat, read from the north side
+SOUTH_WALL = (0, 0, math.pi)                                # decal on the south wall, facing the room
+
+
+def titled_book(x_left, y_front, z, b):
+    """One of Caleb's books, standing with a printed spine. Returns the x of its right side."""
+    w, h, d = b["w"], b["h"], b["d"]
+    spec = {k: v for k, v in b.items() if k not in ("w", "h", "d")}
+    c = Vector((x_left + w / 2, y_front + d / 2, z + h / 2))
+    box("own_book", (w, d, h), c, flat("cover_" + spec.get("bg", "#222222"), art.lin(spec.get("bg", "#222222")), rough=0.6), bevel=0.0015)
+    box("own_book_pages", (w * 0.8, d * 0.96, h * 0.97), c + Vector((0, 0.005, 0)), M_PAPER, bevel=0)
+    decal("spine", w - 0.003, h - 0.003, (c.x, y_front - 0.0004, c.z), None, art.spine(spec, w - 0.003, h - 0.003))
+    return x_left + w + 0.0008
+
+
+def own_shelf(items, x, y_front, z):
+    for it in items:
+        if "case" not in it:
+            x = titled_book(x, y_front, z, it)
+            continue
+        books = it["books"]
+        inner = sum(b["w"] + 0.0008 for b in books)
+        hh, dd, t = max(b["h"] for b in books), max(b["d"] for b in books), 0.004
+        m = flat("case_" + it["case"], art.lin(it["colour"]), rough=0.7)
+        cx = x + t + inner / 2
+        box("case_bottom", (inner + 2 * t, dd + 0.01, t), (cx, y_front + dd / 2, z + t / 2), m, bevel=0.001)
+        for sx in (x + t / 2, x + t + inner + t / 2):
+            box("case_side", (t, dd + 0.01, hh + 0.008), (sx, y_front + dd / 2, z + (hh + 0.008) / 2), m, bevel=0.001)
+        if it["case"] == "tolkien":       # a tray with a tall front lip that carries the name
+            lip = 0.07
+            box("case_lip", (inner + 2 * t, t, lip), (cx, y_front - 0.006, z + lip / 2), m, bevel=0.001)
+            decal("case_label", inner, lip - 0.01, (cx, y_front - 0.0086, z + lip / 2), None,
+                  art.plate(it["label"], inner, lip - 0.01, it["colour"], library.GOLD, "cinzel", 0.34, 0.04), rough=0.7)
+        else:
+            box("case_top", (inner + 2 * t, dd + 0.01, t), (cx, y_front + dd / 2, z + hh + 0.008 + t / 2), m, bevel=0.001)
+        bx = x + t
+        for b in books:
+            bx = titled_book(bx, y_front + 0.003, z + t, b)
+        x = x + inner + 2 * t + 0.001
+    return x
+
+
+
 # ----------------------------------------------------------------------------- shell
 def build_shell():
     group("room")
@@ -285,10 +370,10 @@ def build_shell():
     box("base_n", (W, bt, bh), (0, HY - bt / 2, bh / 2), M_TRIM)
     box("base_s", (W, bt, bh), (0, -HY + bt / 2, bh / 2), M_TRIM)
     box("base_e", (bt, D, bh), (HX - bt / 2, 0, bh / 2), M_TRIM)
-    box("base_w", (bt, 3.2, bh), (-HX + bt / 2, 0.6, bh / 2), M_TRIM)
+    box("base_w", (bt, 2.63, bh), (-HX + bt / 2, 0.585, bh / 2), M_TRIM)
     # picture rail
-    for nm, sz, lc in [("n", (W, 0.02, 0.035), (0, HY - 0.01, 2.36)), ("s", (W, 0.02, 0.035), (0, -HY + 0.01, 2.36)),
-                       ("w", (0.02, D, 0.035), (-HX + 0.01, 0, 2.36))]:
+    for nm, sz, lc in [("n", (W, 0.02, 0.035), (0, HY - 0.01, 2.46)), ("s", (W, 0.02, 0.035), (0, -HY + 0.01, 2.46)),
+                       ("w", (0.02, D, 0.035), (-HX + 0.01, 0, 2.46))]:
         box("rail_" + nm, sz, lc, M_TRIM)
 
     # window frame and mullions, set at the outside face of the reveal
@@ -310,11 +395,11 @@ def build_shell():
 
     # rug
     group("room")
-    box("rug_border", (2.5, 1.75, 0.012), (0.15, 0.05, 0.006), cloth("rug_red", (0.30, 0.05, 0.04), 0.2), bevel=0.003)
-    box("rug_band", (2.3, 1.55, 0.013), (0.15, 0.05, 0.0075), cloth("rug_cream", (0.62, 0.52, 0.36), 0.2), bevel=0.002)
-    box("rug_field", (2.2, 1.45, 0.014), (0.15, 0.05, 0.009), cloth("rug_navy", (0.06, 0.09, 0.17), 0.2), bevel=0.002)
-    box("rug_inner", (1.5, 0.8, 0.015), (0.15, 0.05, 0.0105), cloth("rug_red", (0.30, 0.05, 0.04), 0.2), bevel=0.002)
-    box("rug_centre", (1.0, 0.36, 0.016), (0.15, 0.05, 0.012), cloth("rug_cream", (0.62, 0.52, 0.36), 0.2), bevel=0.002)
+    box("rug_border", (2.2, 1.5, 0.012), (0.0, 0.0, 0.006), cloth("rug_red", (0.30, 0.05, 0.04), 0.2), bevel=0.003)
+    box("rug_band", (2.02, 1.32, 0.013), (0.0, 0.0, 0.0075), cloth("rug_cream", (0.62, 0.52, 0.36), 0.2), bevel=0.002)
+    box("rug_field", (1.92, 1.22, 0.014), (0.0, 0.0, 0.009), cloth("rug_navy", (0.06, 0.09, 0.17), 0.2), bevel=0.002)
+    box("rug_inner", (1.3, 0.66, 0.015), (0.0, 0.0, 0.0105), cloth("rug_red", (0.30, 0.05, 0.04), 0.2), bevel=0.002)
+    box("rug_centre", (0.86, 0.3, 0.016), (0.0, 0.0, 0.012), cloth("rug_cream", (0.62, 0.52, 0.36), 0.2), bevel=0.002)
 
 
 # ----------------------------------------------------------------------------- small props
@@ -344,11 +429,14 @@ def trophy(x, y, z, s=1.0, mat=None):
     cyl("trophy_cup", 0.018 * s, 0.05 * s, 0.11 * s, (x, y, z + 0.16 * s), mat)
 
 
-def frame(name, w, h, loc, rot, mat_frame, mat_inner, t=0.02, border=0.03):
-    """Picture frame in the local XZ plane, facing local -Y."""
+def frame(name, w, h, loc, rot, mat_frame, mat_inner, t=0.02, border=0.03, picture=None):
+    """Picture frame in the local XZ plane, facing local -Y. `picture` is a function (w, h) -> image path."""
     box(name, (w, t, h), loc, mat_frame, rot=rot)
     c = Vector(loc) + Euler(rot).to_matrix() @ Vector((0, -t / 2 - 0.001, 0))
     box(name + "_inner", (w - 2 * border, 0.004, h - 2 * border), c, mat_inner, bevel=0, rot=rot)
+    if picture:
+        pw, ph = w - 2 * border - 0.004, h - 2 * border - 0.004
+        decal(name + "_art", pw, ph, Vector(loc) + Euler(rot).to_matrix() @ Vector((0, -t / 2 - 0.0036, 0)), rot, picture(pw, ph))
 
 
 def mug(x, y, z, mat=None):
@@ -357,15 +445,15 @@ def mug(x, y, z, mat=None):
     box("mug_handle", (0.012, 0.035, 0.05), (x, y + 0.05, z + 0.045), mat or M_CERAMIC, bevel=0.005)
 
 
-def plant(x, y, z):
-    cyl("pot", 0.075, 0.1, 0.16, (x, y, z + 0.08), M_TERRA)
-    cyl("pot_soil", 0.092, 0.092, 0.01, (x, y, z + 0.152), flat("soil", (0.04, 0.025, 0.015), rough=1))
+def plant(x, y, z, s=1.0):
+    cyl("pot", 0.075 * s, 0.1 * s, 0.16 * s, (x, y, z + 0.08 * s), M_TERRA)
+    cyl("pot_soil", 0.092 * s, 0.092 * s, 0.01, (x, y, z + 0.152 * s), flat("soil", (0.04, 0.025, 0.015), rough=1))
     for i in range(9):
         a = i * 2.4
-        hgt = R.uniform(0.28, 0.5)
+        hgt = R.uniform(0.28, 0.5) * s
         tilt = R.uniform(0.05, 0.3)
-        r = 0.035
-        ob = cyl("leaf", 0.03, 0.004, hgt, (x + math.cos(a) * r, y + math.sin(a) * r, z + 0.15 + hgt / 2 * math.cos(tilt)),
+        r = 0.035 * s
+        ob = cyl("leaf", 0.03 * s, 0.004, hgt, (x + math.cos(a) * r, y + math.sin(a) * r, z + 0.15 * s + hgt / 2 * math.cos(tilt)),
                  M_LEAF, seg=8, rot=(tilt * math.sin(a), -tilt * math.cos(a), a))
         ob.scale = (1, 0.25, 1)
 
@@ -373,15 +461,15 @@ def plant(x, y, z):
 # ----------------------------------------------------------------------------- north: bookshelf
 def build_bookshelf():
     group("bookshelf")
-    bw, bd, bh = 3.4, 0.32, 2.26
+    bw, bd, bh = 3.0, 0.32, 2.1
     y0 = HY - bd            # front face plane
     yc = HY - bd / 2
     t = 0.03
-    levels = [0.09, 0.52, 0.94, 1.35, 1.75]
+    levels = [0.09, 0.5, 0.9, 1.3, 1.7]
     box("case_back", (bw, 0.012, bh), (0, HY - 0.008, bh / 2), M_OAK("z"))
     for sx in (-1, 1):
         box("case_side", (t, bd, bh), (sx * (bw / 2 - t / 2), yc, bh / 2), M_OAK("z"))
-    divs = [-0.57, 0.57]
+    divs = [-0.5, 0.5]
     for dx in divs:
         box("case_div", (0.025, bd - 0.02, bh - 0.05), (dx, yc + 0.01, bh / 2), M_OAK("z"))
     box("case_top", (bw + 0.06, bd + 0.03, 0.04), (0, yc - 0.015, bh), M_OAK("x"))
@@ -415,7 +503,7 @@ def build_bookshelf():
 
     plan = {  # (level index, bay index) -> content kind
         (4, 0): "books", (4, 1): "trophies", (4, 2): "books_stack",
-        (3, 0): "books_lean", (3, 1): "books", (3, 2): "radio",
+        (3, 0): "own_list", (3, 1): "own_photo", (3, 2): "radio",
         (2, 0): "globe", (2, 1): "books", (2, 2): "books_lean",
         (1, 0): "books", (1, 1): "books_stack", (1, 2): "books",
         (0, 0): "binders", (0, 1): "books", (0, 2): "box",
@@ -427,6 +515,23 @@ def build_bookshelf():
         mid = (x0 + x1) / 2
         if kind == "books":
             row(x0, x1, z, zmax)
+        elif kind == "own_photo":
+            xe = own_shelf(library.PHOTO_SHELF, x0 + 0.03, y0 + 0.035, z)
+            box("bookend", (0.006, 0.11, 0.15), (xe + 0.006, y0 + 0.09, z + 0.075), M_BLACK, bevel=0.001)
+            box("bookend_foot", (0.09, 0.11, 0.004), (xe + 0.05, y0 + 0.09, z + 0.002), M_BLACK, bevel=0.001)
+        elif kind == "own_list":
+            xe = own_shelf(library.LIST_SHELF, x0 + 0.012, y0 + 0.035, z)
+            box("bookend", (0.006, 0.11, 0.15), (xe + 0.006, y0 + 0.09, z + 0.075), M_BRASS, bevel=0.001)
+            # the Kore baseball on a small stand, and the Leland cap
+            bx_ = xe + 0.1
+            cyl("ball_stand", 0.03, 0.022, 0.012, (bx_, y0 + 0.1, z + 0.006), M_WALNUT("x"))
+            skinned_ball("baseball", 0.037, (bx_, y0 + 0.1, z + 0.012 + 0.035), (0.0, 0.0, BALL_YAW), art.baseball("Kore"))
+            cap_x, cap_y = xe + 0.29, y0 + 0.17
+            capm = flat("cap_black", (0.012, 0.012, 0.014), rough=0.95, sheen=0.05, bump=0.4, bump_scale=700)
+            sphere("cap_crown", 0.088, (cap_x, cap_y + 0.012, z + 0.05), capm, scale=(1.0, 0.9, 0.95))
+            box("cap_front", (0.125, 0.03, 0.075), (cap_x, cap_y - 0.07, z + 0.058), capm, bevel=0.012, rot=(-0.2, 0, 0))
+            box("cap_brim", (0.165, 0.085, 0.007), (cap_x, cap_y - 0.118, z + 0.016), capm, bevel=0.003, rot=(0.06, 0, 0))
+            decal("cap_text", 0.092, 0.034, (cap_x, cap_y - 0.0895, z + 0.06), (-0.2, 0, 0), art.cap_front(0.092, 0.034), rough=0.9)
         elif kind == "books_lean":
             xe = row(x0, x1, z, zmax, fill=0.72)
             book(xe + 0.035, y0 + 0.13, z, 0.035, 0.17, min(0.24, zmax - 0.03), R.randrange(15), lean=-0.22)
@@ -469,7 +574,7 @@ def build_bookshelf():
             box("crate", (0.42, 0.26, 0.26), (x1 - 0.27, y0 + 0.16, z + 0.13), M_PINE("x"), bevel=0.006)
             box("crate_label", (0.14, 0.002, 0.07), (x1 - 0.27, y0 + 0.029, z + 0.15), M_PAPER, bevel=0)
     # on top of the case
-    plant(-1.25, yc, bh + 0.02)
+    plant(-1.15, yc, bh + 0.02, 0.62)
     box("top_box", (0.5, 0.26, 0.2), (0.9, yc, bh + 0.12), flat("archive_box", (0.36, 0.28, 0.18), rough=0.9), bevel=0.005)
     box("top_box_lid", (0.52, 0.28, 0.05), (0.9, yc, bh + 0.235), flat("archive_box", (0.36, 0.28, 0.18), rough=0.9), bevel=0.005)
     stackz = bh + 0.02
@@ -478,8 +583,6 @@ def build_bookshelf():
         book(0.1, yc, stackz, w, 0.19, 0.27, R.randrange(15), axis="flat", yaw=R.uniform(-0.1, 0.1))
         stackz += w
     # small framed print on the wall left of the case
-    group("room")
-    frame("print_nw", 0.38, 0.5, (-2.06, HY - 0.012, 1.55), (0, 0, 0), M_BLACK, flat("print_art", (0.72, 0.42, 0.20), rough=0.7))
 
 
 # ----------------------------------------------------------------------------- east: window nook
@@ -505,7 +608,7 @@ def curtain(name, y0, y1, ztop, zbot, x, mat, folds=7, amp=0.035):
 
 def build_nook():
     group("nook")
-    sd, sh, sw = 0.68, 0.46, 2.5           # seat depth, height, width
+    sd, sh, sw = 0.68, 0.46, 2.3           # seat depth, height, width
     xc = HX - sd / 2
     box("seat_body", (sd, sw, sh - 0.04), (xc, 0, (sh - 0.04) / 2), M_TRIM, bevel=0.004)
     box("seat_top", (sd + 0.02, sw + 0.02, 0.04), (xc - 0.01, 0, sh - 0.02), M_OAK("y"), bevel=0.008)
@@ -518,9 +621,9 @@ def build_nook():
     p1 = cloth("pillow_rust", (0.45, 0.14, 0.06))
     p2 = cloth("pillow_cream", (0.72, 0.64, 0.50))
     p3 = cloth("pillow_green", (0.12, 0.20, 0.12))
-    box("pillow_a", (0.42, 0.14, 0.42), (HX - 0.34, 1.02, sh + 0.30), p1, bevel=0.06, rot=(0.35, 0, 0.1))
-    box("pillow_b", (0.36, 0.13, 0.36), (HX - 0.42, 0.80, sh + 0.26), p2, bevel=0.055, rot=(0.55, 0, -0.2))
-    box("pillow_c", (0.42, 0.14, 0.42), (HX - 0.32, -1.03, sh + 0.30), p3, bevel=0.06, rot=(-0.35, 0, -0.08))
+    box("pillow_a", (0.42, 0.14, 0.42), (HX - 0.34, 0.92, sh + 0.30), p1, bevel=0.06, rot=(0.35, 0, 0.1))
+    box("pillow_b", (0.36, 0.13, 0.36), (HX - 0.42, 0.70, sh + 0.26), p2, bevel=0.055, rot=(0.55, 0, -0.2))
+    box("pillow_c", (0.42, 0.14, 0.42), (HX - 0.32, -0.93, sh + 0.30), p3, bevel=0.06, rot=(-0.35, 0, -0.08))
     # folded blanket, open book, mug
     bl = cloth("blanket_plaid", (0.30, 0.08, 0.07))
     box("blanket", (0.4, 0.5, 0.07), (HX - 0.36, -0.55, sh + 0.145), bl, bevel=0.03, rot=(0, 0, 0.12))
@@ -535,17 +638,17 @@ def build_nook():
     mug(HX + 0.11, 0.55, 0.97)
     # curtains and rod
     lin = flat("linen_curtain", (0.80, 0.70, 0.52), rough=0.95, sheen=0.3, bump=0.3, bump_scale=500)
-    curtain("curtain_l", -1.52, -0.98, 2.44, 0.6, HX - 0.07, lin)
-    curtain("curtain_r", 0.98, 1.52, 2.44, 0.6, HX - 0.07, lin)
-    cyl("curtain_rod", 0.012, 0.012, 3.3, (HX - 0.07, 0, 2.46), M_BRASS, rot=(math.pi / 2, 0, 0))
+    curtain("curtain_l", -1.45, -0.98, 2.385, 0.6, HX - 0.07, lin)
+    curtain("curtain_r", 0.98, 1.45, 2.385, 0.6, HX - 0.07, lin)
+    cyl("curtain_rod", 0.012, 0.012, 3.1, (HX - 0.07, 0, 2.40), M_BRASS, rot=(math.pi / 2, 0, 0))
     for sy in (-1, 1):
-        sphere("rod_finial", 0.025, (HX - 0.07, sy * 1.66, 2.46), M_BRASS)
+        sphere("rod_finial", 0.025, (HX - 0.07, sy * 1.56, 2.40), M_BRASS)
     # floor lamp in the north-east corner
-    lx, ly = HX - 0.32, HY - 0.36
-    cyl("lamp_base", 0.14, 0.13, 0.025, (lx, ly, 0.0125), M_BRASS)
+    lx, ly = HX - 0.27, HY - 0.35
+    cyl("lamp_base", 0.12, 0.11, 0.025, (lx, ly, 0.0125), M_BRASS)
     cyl("lamp_pole", 0.011, 0.011, 1.42, (lx, ly, 0.73), M_BRASS)
     shade = flat("lamp_shade", (0.85, 0.68, 0.42), rough=0.9, emit=(1.0, 0.50, 0.18), emit_strength=0.3)
-    cyl("lamp_shade", 0.2, 0.13, 0.26, (lx, ly, 1.52), shade, caps=False)
+    cyl("lamp_shade", 0.17, 0.11, 0.24, (lx, ly, 1.52), shade, caps=False)
     add_point("floor_lamp_light", (lx, ly, 1.5), (1.0, 0.62, 0.3), 14, 0.07)
 
 
@@ -553,7 +656,7 @@ def build_nook():
 def build_desk():
     group("desk")
     dw, dd, dh = 1.55, 0.72, 0.75
-    dx = 0.15
+    dx = -0.3
     yc = -HY + dd / 2 + 0.02
     box("desk_top", (dw, dd, 0.035), (dx, yc, dh - 0.0175), M_WALNUT("x"), bevel=0.006)
     px = dx + dw / 2 - 0.23                         # drawer pedestal on the right
@@ -590,7 +693,7 @@ def build_desk():
     add_point("banker_light", (bx, by + 0.05, z + 0.2), (1.0, 0.72, 0.4), 9, 0.03)
     # calculator (financial, landscape), legal pad, pen, mug, books, photo
     box("calculator", (0.13, 0.08, 0.014), (dx + 0.22, yc + 0.2, z + 0.007), flat("calc_body", (0.05, 0.04, 0.035), rough=0.4), bevel=0.003, rot=(0, 0, -0.2))
-    box("calc_strip", (0.125, 0.022, 0.001), (dx + 0.214, yc + 0.228, z + 0.0146), M_BRASS, bevel=0, rot=(0, 0, -0.2))
+    decal("calc_face", 0.126, 0.076, (dx + 0.22, yc + 0.2, z + 0.0146), UP(-0.2), art.calculator_face(0.126, 0.076), rough=0.4)
     box("legal_pad", (0.21, 0.3, 0.012), (dx + 0.3, yc - 0.03, z + 0.006), flat("legal_yellow", (0.85, 0.72, 0.25), rough=0.8), bevel=0.002, rot=(0, 0, 0.12))
     cyl("pen", 0.004, 0.004, 0.14, (dx + 0.32, yc + 0.0, z + 0.017), M_BLACK, seg=10, rot=(math.pi / 2, 0, 0.7))
     mug(dx - 0.35, yc + 0.22, z, flat("mug_navy", (0.05, 0.08, 0.2), rough=0.25))
@@ -603,6 +706,10 @@ def build_desk():
     for k, w in enumerate((0.045, 0.035, 0.03)):
         book(dx + 0.55, yc + 0.02, zz, w, 0.19, 0.26, [0, 12, 4][k], axis="flat", yaw=1.57 + R.uniform(-0.1, 0.1))
         zz += w
+    bs = library.BIG_SHORT                                   # The Big Short, cover up, on top of the stack
+    box("big_short", (bs["d"], bs["h"], bs["w"]), (dx + 0.55, yc + 0.02, zz + bs["w"] / 2), flat("cover_bigshort", art.lin(bs["bg"]), rough=0.5), bevel=0.002, rot=(0, 0, 0.1))
+    box("big_short_pages", (bs["d"] * 0.97, bs["h"] * 0.97, bs["w"] * 0.8), (dx + 0.552, yc + 0.02, zz + bs["w"] / 2), M_PAPER, bevel=0, rot=(0, 0, 0.1))
+    decal("big_short_cover", bs["d"] - 0.004, bs["h"] - 0.004, (dx + 0.55, yc + 0.02, zz + bs["w"] + 0.0005), UP(0.1), art.big_short_cover(bs["d"] - 0.004, bs["h"] - 0.004), rough=0.35)
     frame("desk_photo", 0.13, 0.17, (dx - 0.36, yc - 0.24, z + 0.083), (0.2, 0, math.pi + 0.3), M_BRASS, flat("photo_warm", (0.5, 0.4, 0.3), rough=0.3), t=0.012, border=0.014)
     # chair
     cx, cy = dx - 0.12, yc + 0.62
@@ -631,25 +738,32 @@ def build_desk():
     for i, (sx, sz, w, h) in enumerate(spots):
         rr = R.uniform(-0.12, 0.12)
         box("note", (w, 0.0015, h), (bxc + sx, wy_ + 0.017 + i * 0.0004, 1.5 + sz), notes[i % len(notes)], bevel=0, rot=(0, rr, 0))
+        words = {0: ("#e9e6dc", ["read 30 pages", "every day"], True), 2: ("#e3c14a", ["tennis", "7 am"], False), 4: ("#e9e6dc", ["finish", "the book"], True), 6: ("#e6ded0", ["call home"], False)}
+        if i in words:
+            bgc, lines_, ruled = words[i]
+            decal("note_text", w - 0.004, h - 0.004, (bxc + sx, wy_ + 0.0182 + i * 0.0004, 1.5 + sz), (0, -rr, math.pi), art.note(w - 0.004, h - 0.004, bgc, lines_, ruled=ruled))
         sphere("pin", 0.007, (bxc + sx, wy_ + 0.022, 1.5 + sz + h / 2 - 0.015), flat("pin_red", (0.7, 0.05, 0.04), rough=0.3), seg=10)
     cert = flat("certificate", (0.86, 0.82, 0.70), rough=0.7)
-    frame("cert_a", 0.34, 0.27, (dx + 0.72, wy_, 1.72), (0, 0, math.pi), M_BLACK, cert)
-    frame("cert_b", 0.34, 0.27, (dx + 0.72, wy_, 1.38), (0, 0, math.pi), flat("gilt", (0.6, 0.45, 0.2), rough=0.4, metal=1), cert)
+    frame("cert_a", 0.34, 0.27, (dx + 0.72, wy_, 1.72), (0, 0, math.pi), M_BLACK, cert,
+          picture=lambda w, h: art.certificate(w, h, ["BYU MARRIOTT SCHOOL OF BUSINESS", "First Place", "Marriott Case Competition", "2025"]))
+    frame("cert_b", 0.34, 0.27, (dx + 0.72, wy_, 1.38), (0, 0, math.pi), flat("gilt", (0.6, 0.45, 0.2), rough=0.4, metal=1), cert,
+          picture=lambda w, h: art.certificate(w, h, ["BALLARD CENTER", "Third Place", "Ballard Center Case Competition", "2025"], seal=(120, 70, 40)))
     felt = cloth("pennant_navy", (0.04, 0.07, 0.2), 0.6)
     prism("pennant", [(0, 0.11), (0.62, 0), (0, -0.11)], 0.004, (dx + 0.62, wy_ + 0.002, 2.2), felt, rot=(0, 0.06, 0))
     box("pennant_band", (0.03, 0.005, 0.22), (dx + 0.636, wy_ + 0.003, 2.199), cloth("pennant_cream", (0.8, 0.72, 0.55)), bevel=0, rot=(0, 0.06, 0))
-    ckx = dx - 1.05
-    cyl("clock_rim", 0.16, 0.16, 0.04, (ckx, wy_ + 0.01, 1.95), M_BRASS, rot=(math.pi / 2, 0, 0), seg=40)
-    cyl("clock_face", 0.145, 0.145, 0.042, (ckx, wy_ + 0.011, 1.95), flat("clock_face", (0.86, 0.82, 0.7), rough=0.6), rot=(math.pi / 2, 0, 0), seg=40)
-    box("clock_hand_h", (0.012, 0.004, 0.08), (ckx + 0.02, wy_ + 0.034, 1.975), M_BLACK, bevel=0, rot=(0, 0.7, 0))
-    box("clock_hand_m", (0.008, 0.004, 0.12), (ckx - 0.035, wy_ + 0.036, 1.985), M_BLACK, bevel=0, rot=(0, -0.9, 0))
+    ckx = 1.2
+    cyl("clock_rim", 0.16, 0.16, 0.04, (ckx, wy_ + 0.01, 2.17), M_BRASS, rot=(math.pi / 2, 0, 0), seg=40)
+    cyl("clock_face", 0.145, 0.145, 0.042, (ckx, wy_ + 0.011, 2.17), flat("clock_face", (0.86, 0.82, 0.7), rough=0.6), rot=(math.pi / 2, 0, 0), seg=40)
+    decal("clock_numbers", 0.2, 0.2, (ckx, wy_ + 0.0326, 2.17), SOUTH_WALL, art.clock_face(0.2))
+    box("clock_hand_h", (0.012, 0.004, 0.08), (ckx + 0.02, wy_ + 0.034, 2.195), M_BLACK, bevel=0, rot=(0, 0.7, 0))
+    box("clock_hand_m", (0.008, 0.004, 0.12), (ckx - 0.035, wy_ + 0.036, 2.205), M_BLACK, bevel=0, rot=(0, -0.9, 0))
 
 
 def build_desk_wall_extras():
     group("desk")
     wy_ = -HY + 0.012
     # floating shelf above the corkboard
-    sx = 0.0
+    sx = -0.45
     box("wall_shelf", (1.3, 0.2, 0.03), (sx, -HY + 0.1, 2.02), M_OAK("x"))
     for k in (-1, 1):
         box("wall_shelf_bracket", (0.02, 0.16, 0.12), (sx + k * 0.5, -HY + 0.08, 1.95), M_BLACK)
@@ -668,7 +782,7 @@ def build_desk_wall_extras():
     box("camera_body", (0.13, 0.06, 0.08), (sx + 0.12, -HY + 0.1, 2.075), M_BLACK, bevel=0.008)
     cyl("camera_lens", 0.03, 0.03, 0.05, (sx + 0.12, -HY + 0.15, 2.075), flat("lens", (0.02, 0.02, 0.02), rough=0.2, metal=1), rot=(math.pi / 2, 0, 0))
     # record cabinet with turntable, east of the desk
-    cx, cyy = 1.62, -HY + 0.24
+    cx, cyy = 1.2, -HY + 0.24
     box("cab_top", (0.95, 0.44, 0.03), (cx, cyy, 0.645), M_WALNUT("x"), bevel=0.006)
     box("cab_bottom", (0.95, 0.44, 0.03), (cx, cyy, 0.195), M_WALNUT("x"), bevel=0.006)
     box("cab_back", (0.95, 0.02, 0.45), (cx, cyy - 0.21, 0.42), M_WALNUT("x"), bevel=0)
@@ -696,13 +810,10 @@ def build_desk_wall_extras():
         book(cx + 0.28, cyy, zz, w, 0.2, 0.27, [9, 2, 13][k], axis="flat", yaw=R.uniform(-0.15, 0.15))
         zz += w
     mug(cx + 0.28, cyy - 0.02, zz, flat("mug_rust", (0.5, 0.18, 0.08), rough=0.3))
-    frame("poster_e", 0.56, 0.78, (cx, wy_, 1.55), (0, 0, math.pi), M_OAK("z"), flat("poster_teal", (0.07, 0.22, 0.24), rough=0.7), border=0.025)
-    box("poster_e_sun", (0.3, 0.002, 0.3), (cx, wy_ + 0.014, 1.63), flat("poster_sun", (0.85, 0.5, 0.15), rough=0.7), bevel=0)
-    box("poster_e_band", (0.42, 0.002, 0.05), (cx, wy_ + 0.014, 1.3), flat("poster_cream", (0.82, 0.74, 0.58), rough=0.7), bevel=0)
+    frame("poster_e", 0.56, 0.78, (cx, wy_, 1.52), (0, 0, math.pi), M_OAK("z"), flat("poster_teal", (0.07, 0.22, 0.24), rough=0.7), border=0.025, picture=art.ridge_poster)
     # two prints west of the desk
-    frame("print_sw_a", 0.4, 0.52, (-1.55, wy_, 1.62), (0, 0, math.pi), M_BLACK, flat("print_cream", (0.8, 0.74, 0.6), rough=0.7), border=0.05)
-    box("print_sw_a_art", (0.2, 0.002, 0.28), (-1.55, wy_ + 0.014, 1.62), flat("print_ink", (0.1, 0.12, 0.2), rough=0.7), bevel=0)
-    frame("print_sw_b", 0.3, 0.3, (-1.55, wy_, 1.12), (0, 0, math.pi), M_OAK("z"), flat("print_rust", (0.5, 0.2, 0.1), rough=0.7), border=0.04)
+    frame("print_sw_a", 0.4, 0.52, (-1.62, wy_, 1.66), (0, 0, math.pi), M_BLACK, flat("print_cream", (0.8, 0.74, 0.6), rough=0.7), border=0.05, picture=art.shapes_print)
+    frame("print_sw_b", 0.3, 0.3, (-1.62, wy_, 1.16), (0, 0, math.pi), M_OAK("z"), flat("print_rust", (0.5, 0.2, 0.1), rough=0.7), border=0.04, picture=art.court_print)
 
 
 # ----------------------------------------------------------------------------- west: door, mirror, rack
@@ -710,7 +821,7 @@ def build_west():
     x = -HX
     # door (facing west: left is south, so the door is at negative y)
     group("door")
-    dy0, dy1, dz = -1.95, -1.05, 2.05
+    dy0, dy1, dz = -1.72, -0.82, 2.05
     dyc = (dy0 + dy1) / 2
     cw = 0.09
     box("door_case_l", (0.03, cw, dz), (x + 0.015, dy0 - cw / 2, dz / 2), M_TRIM)
@@ -727,21 +838,9 @@ def build_west():
     sphere("door_knob", 0.03, (x + 0.09, dy1 - 0.08, 1.0), M_BRASS, scale=(0.75, 1, 1))
     box("light_switch", (0.006, 0.075, 0.12), (x + 0.004, dy1 + 0.22, 1.2), M_TRIM, bevel=0.003)
     box("switch_toggle", (0.012, 0.012, 0.03), (x + 0.01, dy1 + 0.22, 1.205), M_TRIM, bevel=0.002)
-    # coat hook rail with a cap and a tote
-    box("hook_rail", (0.018, 0.5, 0.08), (x + 0.009, dy1 + 0.5, 1.72), M_OAK("y"))
-    for k in range(3):
-        hy = dy1 + 0.33 + k * 0.17
-        cyl("hook", 0.007, 0.007, 0.06, (x + 0.045, hy, 1.71), M_BRASS, rot=(0, math.pi / 2, 0), seg=10)
-        sphere("hook_tip", 0.011, (x + 0.076, hy, 1.71), M_BRASS, seg=10)
-    tote = cloth("tote_canvas", (0.68, 0.6, 0.45))
-    box("tote", (0.07, 0.34, 0.38), (x + 0.07, dy1 + 0.33, 1.3), tote, bevel=0.02)
-    box("tote_strap", (0.012, 0.02, 0.26), (x + 0.06, dy1 + 0.33, 1.6), tote, bevel=0.002)
-    sphere("cap", 0.095, (x + 0.11, dy1 + 0.67, 1.68), cloth("cap_navy", (0.05, 0.07, 0.16)), scale=(0.9, 1, 0.72))
-    box("cap_brim", (0.1, 0.16, 0.012), (x + 0.2, dy1 + 0.67, 1.645), cloth("cap_navy", (0.05, 0.07, 0.16)), bevel=0.005, rot=(0, 0.25, 0))
-
     # leaning floor mirror
     group("mirror")
-    my, mw, mh, lean = 0.02, 0.62, 1.72, 0.11
+    my, mw, mh, lean = -0.08, 0.62, 1.72, 0.11
     mc = Vector((x + 0.03 + math.sin(lean) * mh / 2 + 0.02, my, math.cos(lean) * mh / 2))
     rot = (0, lean, 0)
     box("mirror_frame", (0.035, mw, mh), mc, M_WALNUT("z"), bevel=0.008, rot=rot)
@@ -749,7 +848,7 @@ def build_west():
 
     # clothing rack
     group("rack")
-    ry0, ry1, rx, rh = 0.62, 1.86, x + 0.42, 1.68
+    ry0, ry1, rx, rh = 0.42, 1.5, x + 0.42, 1.68
     for yy in (ry0, ry1):
         cyl("rack_post", 0.014, 0.014, rh, (rx, yy, rh / 2), M_BLACK)
         cyl("rack_foot", 0.014, 0.014, 0.5, (rx, yy, 0.014), M_BLACK, rot=(0, math.pi / 2, 0))
@@ -783,9 +882,9 @@ def build_west():
         box("shoe_collar", (0.11, 0.088, 0.05), (rx - 0.075, yy, 0.262), m, bevel=0.02, rot=(0, 0, yaw))
     shoe(ry0 + 0.16, (0.85, 0.84, 0.8), 0.06); shoe(ry0 + 0.28, (0.85, 0.84, 0.8), -0.04)
     shoe(ry0 + 0.52, (0.16, 0.08, 0.04), 0.03); shoe(ry0 + 0.64, (0.16, 0.08, 0.04), -0.05)
-    shoe(ry0 + 0.9, (0.07, 0.09, 0.14), 0.08); shoe(ry0 + 1.02, (0.07, 0.09, 0.14), 0.0)
+    shoe(ry0 + 0.86, (0.07, 0.09, 0.14), 0.08); shoe(ry0 + 0.98, (0.07, 0.09, 0.14), 0.0)
     # tennis racket leaning between the mirror and the rack
-    ty = 0.47
+    ty = 0.31
     tl = 0.2                                            # lean away from the wall
     base = Vector((x + 0.2, ty, 0.0))
     rmat = Euler((0, tl, 0)).to_matrix()
@@ -807,8 +906,8 @@ def build_west():
     ob.scale = (1, 1.28, 1)
     ob.rotation_euler = head.rotation_euler
     ball = flat("tennis", (0.62, 0.75, 0.10), rough=0.9, sheen=0.5)
-    sphere("tennis_ball", 0.033, (x + 0.33, 0.44, 0.033), ball)
-    sphere("tennis_ball", 0.033, (x + 0.52, 0.36, 0.033), ball)
+    sphere("tennis_ball", 0.033, (x + 0.33, 0.27, 0.033), ball)
+    sphere("tennis_ball", 0.033, (x + 0.55, 0.2, 0.033), ball)
     sphere("tennis_ball", 0.033, (x + 0.75, -0.55, 0.033), ball)
 
 
@@ -824,6 +923,7 @@ def add_point(name, loc, color, watts, radius):
     return ob
 
 
+BALL_YAW = -1.57
 SUN_TRAVEL = Vector((-1.0, 0.42, -0.26)).normalized()   # direction the sunlight travels
 
 
@@ -882,7 +982,7 @@ def build_outside():
     lp = nt.nodes.new("ShaderNodeLightPath")
     st = nt.nodes.new("ShaderNodeMapRange")
     st.inputs["To Min"].default_value = 1.6
-    st.inputs["To Max"].default_value = 0.5
+    st.inputs["To Max"].default_value = 0.3
     nt.links.new(lp.outputs["Is Camera Ray"], st.inputs["Value"])
     nt.links.new(st.outputs[0], bg.inputs["Strength"])
 
@@ -905,7 +1005,7 @@ def camera_for(view):
     cd.sensor_width = 36
     cd.clip_start = 0.05
     ob = bpy.data.objects.new("cam_" + view, cd)
-    back = 0.95
+    back = 0.6
     ob.location = (-dx * back, -dy * back, 1.38)
     ob.rotation_euler = Vector((dx, dy, -0.03)).to_track_quat("-Z", "Y").to_euler()
     COL.objects.link(ob)
@@ -939,9 +1039,24 @@ scene.view_settings.exposure = 1.1
 os.makedirs(args.out, exist_ok=True)
 if args.blend:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.out, "room.blend"))
+CLOSE = {"shelf": ((-0.45, 0.75, 1.5), (-0.45, 1.9, 1.5)), "desktop": ((-0.1, -0.75, 1.25), (0.0, -1.9, 0.8)), "deskwall": ((0.2, -0.3, 1.6), (0.2, -1.9, 1.6))}
+
+
+def close_camera(v):
+    eye, look = CLOSE[v]
+    cd = bpy.data.cameras.new("cam_" + v)
+    cd.lens = 26
+    cd.clip_start = 0.05
+    ob = bpy.data.objects.new("cam_" + v, cd)
+    ob.location = eye
+    ob.rotation_euler = (Vector(look) - Vector(eye)).to_track_quat("-Z", "Y").to_euler()
+    COL.objects.link(ob)
+    return ob
+
+
 if args.stills:
     for v in args.views.split(","):
-        scene.camera = camera_for(v)
+        scene.camera = close_camera(v) if v in CLOSE else camera_for(v)
         scene.render.filepath = os.path.join(args.out, f"still_{v}.png")
         bpy.ops.render.render(write_still=True)
         print("RENDERED", v, flush=True)
@@ -951,7 +1066,7 @@ print("OBJECTS", len(bpy.data.objects))
 # ----------------------------------------------------------------------------- bake and export
 # Materials the website draws itself, so they stay out of the baked textures.
 LIVE = {"mirror_glass": "live_mirror", "laptop_screen": "live_screen", "racket_strings": "live_strings"}
-BAKE_SIZE = {"room": 2, "bookshelf": 2}        # multiplier on --bake-res
+BAKE_SIZE = {"room": 2, "bookshelf": 2, "bookshelf__detail": 2}        # multiplier on --bake-res
 
 
 def bake_and_export():
@@ -967,7 +1082,8 @@ def bake_and_export():
             ob.name = LIVE[mname] + "_" + ob.get("group", "room")
             live.append(ob)
             continue
-        groups.setdefault(ob.get("group", "room"), []).append(ob)
+        g = ob.get("group", "room")
+        groups.setdefault(g + "__detail" if ob.get("detail") else g, []).append(ob)
     merged = {}
     for g, obs in groups.items():
         bpy.ops.object.select_all(action="DESELECT")
@@ -993,15 +1109,23 @@ def bake_and_export():
         bpy.ops.object.select_all(action="DESELECT")
         m.select_set(True)
         view.objects.active = m
+        # Pictures keep their own UV map ("UVMap"). The bake gets a second map, which becomes the only one on export.
+        if "UVMap" not in m.data.uv_layers:
+            m.data.uv_layers.new(name="UVMap")
+        m.data.uv_layers["UVMap"].active_render = True
+        bake_uv = m.data.uv_layers.new(name="bake")
+        m.data.uv_layers.active = bake_uv
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0015, area_weight=0.0, scale_to_bounds=False)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.004 if g.endswith("__detail") else 0.0015, area_weight=0.0, scale_to_bounds=False)
         bpy.ops.object.mode_set(mode="OBJECT")
         res = args.bake_res * BAKE_SIZE.get(g, 1)
         manifest["groups"][g] = {"texture": f"{g}.jpg", "size": res, "triangles": sum(len(p.vertices) - 2 for p in m.data.polygons)}
         print("UV", g, round(time.time() - t0, 1), flush=True)
         if only and g not in only:
             continue
+        m.data.uv_layers["UVMap"].active_render = True
+        m.data.uv_layers.active = m.data.uv_layers["bake"]
         img = bpy.data.images.new("bake_" + g, res, res, alpha=False)
         for slot in m.material_slots:
             nt = slot.material.node_tree
@@ -1017,8 +1141,8 @@ def bake_and_export():
     # export geometry only; the website applies the baked textures itself
     for g, m in merged.items():
         m.data.materials.clear()
-        if g == "outside":
-            continue
+        if "bake" in m.data.uv_layers and "UVMap" in m.data.uv_layers:
+            m.data.uv_layers.remove(m.data.uv_layers["UVMap"])
     bpy.ops.object.select_all(action="DESELECT")
     for ob in list(merged.values()) + live:
         if ob.name != "outside":

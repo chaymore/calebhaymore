@@ -21,7 +21,7 @@ interface Manifest {
 const WALLS = ['north', 'east', 'south', 'west'] as const;
 type Wall = (typeof WALLS)[number];
 const DIR: Record<Wall, [number, number]> = { north: [0, 1], east: [1, 0], south: [0, -1], west: [-1, 0] };
-const BACK = 0.95;
+const BACK = 0.6;
 const EYE = 1.38;
 
 /** Blender (x, y, z-up) to three.js (x, y-up, z). */
@@ -54,7 +54,7 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
 
   function wallPose(w: Wall) {
     const [dx, dy] = DIR[w];
-    return { eye: v(-dx * BACK, -dy * BACK, EYE), look: v(dx * 2.4, dy * 2.4, EYE - 0.1) };
+    return { eye: v(-dx * BACK, -dy * BACK, EYE), look: v(dx * 2.0, dy * 2.0, EYE - 0.08) };
   }
 
   function aim(snap = false) {
@@ -104,7 +104,7 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
 
   // ---- scene
   const meshes: THREE.Mesh[] = [];
-  const materials = new Map<string, THREE.MeshBasicMaterial>();
+  const materials = new Map<string, THREE.MeshBasicMaterial[]>(); // by object group
   let hovered = '';
 
   async function load() {
@@ -130,9 +130,12 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
           mat.map = t;
           mat.needsUpdate = true;
         }));
+        // "bookshelf__detail" holds the sharp pictures (spines, posters) that belong to "bookshelf"
+        const group = m.name.split('__')[0];
+        if (m.name.includes('__detail')) { mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -2; }
         m.material = mat;
-        materials.set(m.name, mat);
-        m.userData.group = m.name;
+        materials.set(group, [...(materials.get(group) ?? []), mat]);
+        m.userData.group = group;
         meshes.push(m);
       } else if (m.name.startsWith('live_mirror')) {
         // a real planar reflection, laid just in front of the glass
@@ -220,9 +223,9 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
 
   function setHover(g: string, e?: PointerEvent) {
     if (g !== hovered) {
-      if (hovered) materials.get(hovered)?.color.setScalar(1);
+      if (hovered) materials.get(hovered)?.forEach((x) => x.color.setScalar(1));
       hovered = g;
-      if (g) materials.get(g)?.color.setScalar(1.12);
+      if (g) materials.get(g)?.forEach((x) => x.color.setScalar(1.12));
       canvas.style.cursor = g ? 'pointer' : 'grab';
       label.textContent = g ? hotspots.find((h) => h.group === g)!.label : '';
       label.hidden = !g;
