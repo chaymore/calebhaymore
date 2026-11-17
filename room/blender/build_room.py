@@ -358,7 +358,7 @@ def build_shell():
     box("wall_s", (W + 2 * T, T, H), (0, -HY - T / 2, H / 2), M_PLASTER, bevel=0)
     box("wall_w", (T, D, H), (-HX - T / 2, 0, H / 2), M_PLASTER, bevel=0)
     # east wall with a window opening: y -0.95..0.95, z 0.95..2.28
-    wy, z0, z1 = 0.95, 0.95, 2.28
+    wy, z0, z1 = 0.46, 0.95, 2.28
     x = HX + T / 2
     box("wall_e_low", (T, D, z0), (x, 0, z0 / 2), M_PLASTER, bevel=0)
     box("wall_e_top", (T, D, H - z1), (x, 0, (H + z1) / 2), M_PLASTER, bevel=0)
@@ -461,7 +461,7 @@ def plant(x, y, z, s=1.0):
 # ----------------------------------------------------------------------------- north: bookshelf
 def build_bookshelf():
     group("bookshelf")
-    bw, bd, bh = 3.0, 0.32, 2.1
+    bw, bd, bh = 2.8, 0.32, 2.1
     y0 = HY - bd            # front face plane
     yc = HY - bd / 2
     t = 0.03
@@ -469,7 +469,7 @@ def build_bookshelf():
     box("case_back", (bw, 0.012, bh), (0, HY - 0.008, bh / 2), M_OAK("z"))
     for sx in (-1, 1):
         box("case_side", (t, bd, bh), (sx * (bw / 2 - t / 2), yc, bh / 2), M_OAK("z"))
-    divs = [-0.5, 0.5]
+    divs = [-0.46, 0.46]
     for dx in divs:
         box("case_div", (0.025, bd - 0.02, bh - 0.05), (dx, yc + 0.01, bh / 2), M_OAK("z"))
     box("case_top", (bw + 0.06, bd + 0.03, 0.04), (0, yc - 0.015, bh), M_OAK("x"))
@@ -574,7 +574,7 @@ def build_bookshelf():
             box("crate", (0.42, 0.26, 0.26), (x1 - 0.27, y0 + 0.16, z + 0.13), M_PINE("x"), bevel=0.006)
             box("crate_label", (0.14, 0.002, 0.07), (x1 - 0.27, y0 + 0.029, z + 0.15), M_PAPER, bevel=0)
     # on top of the case
-    plant(-1.15, yc, bh + 0.02, 0.62)
+    plant(-1.05, yc, bh + 0.02, 0.62)
     box("top_box", (0.5, 0.26, 0.2), (0.9, yc, bh + 0.12), flat("archive_box", (0.36, 0.28, 0.18), rough=0.9), bevel=0.005)
     box("top_box_lid", (0.52, 0.28, 0.05), (0.9, yc, bh + 0.235), flat("archive_box", (0.36, 0.28, 0.18), rough=0.9), bevel=0.005)
     stackz = bh + 0.02
@@ -606,45 +606,115 @@ def curtain(name, y0, y1, ztop, zbot, x, mat, folds=7, amp=0.035):
     return _finish(name, bm, mat, (0, 0, 0), None)
 
 
+WEST_FACE = (0, 0, -math.pi / 2)                 # decal on the east wall, facing the room
+
+
 def build_nook():
-    group("nook")
-    sd, sh, sw = 0.68, 0.46, 2.3           # seat depth, height, width
-    xc = HX - sd / 2
-    box("seat_body", (sd, sw, sh - 0.04), (xc, 0, (sh - 0.04) / 2), M_TRIM, bevel=0.004)
-    box("seat_top", (sd + 0.02, sw + 0.02, 0.04), (xc - 0.01, 0, sh - 0.02), M_OAK("y"), bevel=0.008)
-    for k in range(3):                      # panelled front
-        py = (k - 1) * (sw / 3)
-        box("seat_panel", (0.012, sw / 3 - 0.12, sh - 0.2), (HX - sd - 0.004, py, (sh - 0.04) / 2 + 0.02), M_TRIM, bevel=0.006)
-    cush = cloth("cushion_mustard", (0.55, 0.36, 0.08))
-    box("seat_cushion", (sd - 0.05, sw - 0.06, 0.11), (xc, 0, sh + 0.055), cush, bevel=0.035)
-    # pillows
-    p1 = cloth("pillow_rust", (0.45, 0.14, 0.06))
-    p2 = cloth("pillow_cream", (0.72, 0.64, 0.50))
-    p3 = cloth("pillow_green", (0.12, 0.20, 0.12))
-    box("pillow_a", (0.42, 0.14, 0.42), (HX - 0.34, 0.92, sh + 0.30), p1, bevel=0.06, rot=(0.35, 0, 0.1))
-    box("pillow_b", (0.36, 0.13, 0.36), (HX - 0.42, 0.70, sh + 0.26), p2, bevel=0.055, rot=(0.55, 0, -0.2))
-    box("pillow_c", (0.42, 0.14, 0.42), (HX - 0.32, -0.93, sh + 0.30), p3, bevel=0.06, rot=(-0.35, 0, -0.08))
-    # folded blanket, open book, mug
-    bl = cloth("blanket_plaid", (0.30, 0.08, 0.07))
-    box("blanket", (0.4, 0.5, 0.07), (HX - 0.36, -0.55, sh + 0.145), bl, bevel=0.03, rot=(0, 0, 0.12))
-    box("blanket_fold", (0.38, 0.46, 0.05), (HX - 0.37, -0.55, sh + 0.2), cloth("blanket_stripe", (0.62, 0.55, 0.42)), bevel=0.024, rot=(0, 0, 0.14))
-    box("open_book_l", (0.15, 0.21, 0.018), (HX - 0.40, 0.14, sh + 0.122), M_PAPER, bevel=0.003, rot=(0, 0.1, 0.25))
-    box("open_book_r", (0.15, 0.21, 0.018), (HX - 0.255, 0.177, sh + 0.122), M_PAPER, bevel=0.003, rot=(0, -0.1, 0.25))
-    box("open_book_cover", (0.31, 0.22, 0.006), (HX - 0.328, 0.158, sh + 0.111), book_mat(1), bevel=0.002, rot=(0, 0, 0.25))
-    zz = 0.94 + 0.03
-    for k, w in enumerate((0.03, 0.022, 0.035)):  # paperbacks on the sill
-        book(HX + 0.13, -0.62, zz, w, 0.11, 0.18, 6 + k * 3, axis="flat", yaw=1.57 + R.uniform(-0.1, 0.1))
-        zz += w
-    mug(HX + 0.11, 0.55, 0.97)
-    # curtains and rod
+    """East wall: a piano on the north half, a window in the middle, a reading chair on the south half."""
+    # ---- window dressing
+    group("window")
     lin = flat("linen_curtain", (0.80, 0.70, 0.52), rough=0.95, sheen=0.3, bump=0.3, bump_scale=500)
-    curtain("curtain_l", -1.45, -0.98, 2.385, 0.6, HX - 0.07, lin)
-    curtain("curtain_r", 0.98, 1.45, 2.385, 0.6, HX - 0.07, lin)
-    cyl("curtain_rod", 0.012, 0.012, 3.1, (HX - 0.07, 0, 2.40), M_BRASS, rot=(math.pi / 2, 0, 0))
+    curtain("curtain_l", -0.86, -0.5, 2.385, 0.9, HX - 0.07, lin, folds=5)
+    curtain("curtain_r", 0.5, 0.86, 2.385, 0.9, HX - 0.07, lin, folds=5)
+    cyl("curtain_rod", 0.012, 0.012, 1.9, (HX - 0.07, 0, 2.40), M_BRASS, rot=(math.pi / 2, 0, 0))
     for sy in (-1, 1):
-        sphere("rod_finial", 0.025, (HX - 0.07, sy * 1.56, 2.40), M_BRASS)
-    # floor lamp in the north-east corner
-    lx, ly = HX - 0.27, HY - 0.35
+        sphere("rod_finial", 0.025, (HX - 0.07, sy * 0.96, 2.40), M_BRASS)
+    zz = 0.97
+    for k, w in enumerate((0.03, 0.022, 0.035)):  # paperbacks on the sill
+        book(HX + 0.13, -0.2, zz, w, 0.11, 0.18, 6 + k * 3, axis="flat", yaw=1.57 + R.uniform(-0.1, 0.1))
+        zz += w
+    plant(HX + 0.12, 0.2, 0.97, 0.45)
+    # the two balls under the window
+    skinned_ball("basketball", 0.12, (HX - 0.2, 0.2, 0.12), (0.4, 0.2, 2.2), art.basketball())
+    skinned_ball("soccer_ball", 0.11, (HX - 0.3, -0.1, 0.11), (0.5, 0.3, 2.6), art.soccer_ball())
+
+    # ---- piano, north half. It faces west.
+    group("piano")
+    ebony = flat("piano_black", (0.012, 0.011, 0.01), rough=0.16)
+    pw, pd, ph = 1.42, 0.36, 1.2                       # width along y, depth of the case, height
+    py = 1.02                                          # centre along the wall
+    xb = HX - pd / 2 - 0.02                            # case centre
+    xf = HX - pd - 0.02                                # case front face
+    box("piano_case", (pd, pw, ph - 0.1), (xb, py, (ph - 0.1) / 2 + 0.1), ebony, bevel=0.006)
+    box("piano_lid", (pd + 0.03, pw + 0.03, 0.025), (xb - 0.005, py, ph + 0.0125), ebony, bevel=0.006)
+    box("piano_plinth", (pd + 0.02, pw + 0.02, 0.1), (xb, py, 0.05), ebony, bevel=0.006)
+    kd = 0.3                                           # key bed sticks out toward the room
+    box("piano_keybed", (kd, pw, 0.06), (xf - kd / 2, py, 0.66), ebony, bevel=0.006)
+    for sy in (-1, 1):
+        box("piano_cheek", (kd, 0.05, 0.14), (xf - kd / 2, py + sy * (pw / 2 - 0.025), 0.75), ebony, bevel=0.006)
+        box("piano_leg", (0.07, 0.07, 0.63), (xf - kd + 0.06, py + sy * (pw / 2 - 0.045), 0.315), ebony, bevel=0.008)
+    kw = pw - 0.12                                     # the keyboard
+    box("piano_keys", (0.145, kw, 0.02), (xf - 0.16, py, 0.7), flat("ivory", (0.82, 0.78, 0.66), rough=0.3), bevel=0.002)
+    decal("piano_key_lines", kw - 0.004, 0.14, (xf - 0.16, py, 0.7102), UP(math.pi / 2), art.piano_keys(kw - 0.004, 0.14), rough=0.3)
+    step = kw / 52
+    for i in range(51):                                # black keys: none after E and B
+        if i % 7 in (1, 4):
+            continue
+        y = py + kw / 2 - (i + 1) * step
+        box("piano_black_key", (0.09, step * 0.56, 0.012), (xf - 0.135, y, 0.716), ebony, bevel=0.0015)
+    box("piano_fallboard", (0.02, kw, 0.13), (xf - 0.012, py, 0.775), ebony, bevel=0.004, rot=(0, 0.12, 0))
+    box("piano_felt", (0.012, kw, 0.012), (xf - 0.082, py, 0.712), flat("felt_red", (0.4, 0.03, 0.03), rough=1), bevel=0)
+    box("piano_desk", (0.012, 0.62, 0.24), (xf - 0.03, py, 1.0), ebony, bevel=0.004, rot=(0, 0.16, 0))
+    box("piano_desk_ledge", (0.04, 0.62, 0.012), (xf - 0.04, py, 0.875), ebony, bevel=0.003)
+    decal("sheet_music", 0.44, 0.3, (xf - 0.045, py, 1.03), (0.16, 0, -math.pi / 2), art.sheet_music(0.44, 0.3), rough=0.8)
+    for k in (-1, 0, 1):
+        box("piano_pedal", (0.09, 0.03, 0.012), (xf - 0.06, py + k * 0.09, 0.06), M_BRASS, bevel=0.004, rot=(0, -0.15, 0))
+    plate_ = art.plate("H A Y M O R E", 0.2, 0.02, "#030303", library.GOLD, "cinzel", 0.6, 0.1)
+    decal("piano_name", 0.2, 0.02, (xf - 0.0235, py, 0.79), (0.12, 0, -math.pi / 2), plate_, rough=0.3)
+    # on top: a metronome, a framed photo, a small lamp
+    prism("metronome", [(-0.045, 0), (0.045, 0), (0.016, 0.2), (-0.016, 0.2)], 0.09, (xb, py + 0.45, ph + 0.025), M_WALNUT("z"), bevel=0.004)
+    box("metronome_arm", (0.004, 0.004, 0.15), (xb - 0.047, py + 0.45, ph + 0.11), M_BRASS, bevel=0, rot=(0.25, 0, 0))
+    frame("piano_photo", 0.2, 0.15, (xb - 0.02, py - 0.42, ph + 0.1), (0.15, 0, -math.pi / 2 + 0.25), M_BRASS, flat("photo_warm", (0.5, 0.4, 0.3), rough=0.3), t=0.012, border=0.016)
+    zz = ph + 0.025
+    for k, w in enumerate((0.012, 0.02, 0.01)):       # music books lying on the lid
+        book(xb, py - 0.05, zz, w, 0.23, 0.31, [4, 9, 14][k], axis="flat", yaw=R.uniform(-0.12, 0.12))
+        zz += w
+    # bench
+    bx_ = xf - kd - 0.33
+    box("bench_seat", (0.36, 0.78, 0.05), (bx_, py, 0.47), ebony, bevel=0.008)
+    box("bench_pad", (0.33, 0.74, 0.04), (bx_, py, 0.51), flat("bench_leather", (0.07, 0.03, 0.02), rough=0.5), bevel=0.018)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            box("bench_leg", (0.04, 0.04, 0.45), (bx_ + sx * 0.14, py + sy * 0.34, 0.225), ebony, bevel=0.006)
+
+    # ---- reading chair, south half
+    group("nook")
+    leather = flat("chair_leather", (0.30, 0.12, 0.045), rough=0.42, bump=0.25, bump_scale=160)
+    cx, cy, yaw = HX - 0.52, -1.06, 0.22               # the chair turns a little toward the room
+    rm = Euler((0, 0, yaw)).to_matrix()
+
+    def cp(v):                                         # chair-local: -x is the front (toward the room), y is along the wall
+        return Vector((cx, cy, 0)) + rm @ Vector(v)
+    rz = (0, 0, yaw)
+    box("armchair_base", (0.78, 0.8, 0.22), cp((0, 0, 0.23)), leather, bevel=0.03, rot=rz)
+    box("armchair_seat", (0.6, 0.54, 0.15), cp((-0.08, 0, 0.4)), leather, bevel=0.05, rot=rz)
+    box("armchair_back", (0.2, 0.62, 0.66), cp((0.28, 0, 0.66)), leather, bevel=0.07, rot=(0, -0.2, yaw))
+    for sy in (-1, 1):
+        box("armchair_arm", (0.74, 0.16, 0.34), cp((0.0, sy * 0.35, 0.45)), leather, bevel=0.06, rot=rz)
+        for sx in (-1, 1):
+            cyl("armchair_leg", 0.022, 0.016, 0.12, cp((sx * 0.32, sy * 0.33, 0.06)), M_WALNUT("z"), seg=12)
+    box("armchair_pillow", (0.12, 0.4, 0.34), cp((0.12, 0.02, 0.62)), cloth("pillow_cream", (0.72, 0.64, 0.50)), bevel=0.055, rot=(0, -0.3, yaw + 0.1))
+    bl = cloth("blanket_plaid", (0.30, 0.08, 0.07))
+    box("blanket_over_arm", (0.5, 0.2, 0.04), cp((0.02, -0.35, 0.64)), bl, bevel=0.018, rot=rz)
+    box("blanket_drop", (0.5, 0.035, 0.3), cp((0.02, -0.445, 0.5)), bl, bevel=0.015, rot=rz)
+    box("blanket_drop_in", (0.5, 0.035, 0.16), cp((0.02, -0.262, 0.57)), bl, bevel=0.015, rot=rz)
+    box("footstool", (0.42, 0.5, 0.2), cp((-0.78, 0.05, 0.25)), leather, bevel=0.05, rot=rz)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl("footstool_leg", 0.02, 0.014, 0.15, cp((-0.78 + sx * 0.15, 0.05 + sy * 0.19, 0.075)), M_WALNUT("z"), seg=12)
+    # side table by the window with the open book and a mug
+    tx, ty = HX - 0.3, -0.45
+    cyl("side_table_top", 0.2, 0.2, 0.025, (tx, ty, 0.56), M_WALNUT("x"), seg=40)
+    cyl("side_table_stem", 0.02, 0.02, 0.53, (tx, ty, 0.28), M_WALNUT("z"), seg=14)
+    cyl("side_table_foot", 0.15, 0.16, 0.02, (tx, ty, 0.01), M_WALNUT("x"), seg=32)
+    zt = 0.5725
+    box("open_book_l", (0.15, 0.21, 0.018), (tx - 0.02, ty - 0.07, zt + 0.011), M_PAPER, bevel=0.003, rot=(0, 0.1, 1.2))
+    box("open_book_cover", (0.16, 0.22, 0.006), (tx - 0.02, ty - 0.07, zt + 0.003), book_mat(1), bevel=0.002, rot=(0, 0, 1.2))
+    mug(tx + 0.03, ty + 0.1, zt)
+    # El Capitan above the chair
+    frame("el_capitan", 0.72, 0.54, (HX - 0.012, -1.25, 1.62), WEST_FACE, M_OAK("x"), M_WHITE, border=0.055, picture=art.el_capitan)
+    # floor lamp in the south-east corner, over the reader's shoulder
+    lx, ly = HX - 0.22, -1.68
     cyl("lamp_base", 0.12, 0.11, 0.025, (lx, ly, 0.0125), M_BRASS)
     cyl("lamp_pole", 0.011, 0.011, 1.42, (lx, ly, 0.73), M_BRASS)
     shade = flat("lamp_shade", (0.85, 0.68, 0.42), rough=0.9, emit=(1.0, 0.50, 0.18), emit_strength=0.3)
@@ -656,7 +726,7 @@ def build_nook():
 def build_desk():
     group("desk")
     dw, dd, dh = 1.55, 0.72, 0.75
-    dx = -0.3
+    dx = -0.48
     yc = -HY + dd / 2 + 0.02
     box("desk_top", (dw, dd, 0.035), (dx, yc, dh - 0.0175), M_WALNUT("x"), bevel=0.006)
     px = dx + dw / 2 - 0.23                         # drawer pedestal on the right
@@ -751,7 +821,7 @@ def build_desk():
     felt = cloth("pennant_navy", (0.04, 0.07, 0.2), 0.6)
     prism("pennant", [(0, 0.11), (0.62, 0), (0, -0.11)], 0.004, (dx + 0.62, wy_ + 0.002, 2.2), felt, rot=(0, 0.06, 0))
     box("pennant_band", (0.03, 0.005, 0.22), (dx + 0.636, wy_ + 0.003, 2.199), cloth("pennant_cream", (0.8, 0.72, 0.55)), bevel=0, rot=(0, 0.06, 0))
-    ckx = 1.2
+    ckx = 0.86
     cyl("clock_rim", 0.16, 0.16, 0.04, (ckx, wy_ + 0.01, 2.17), M_BRASS, rot=(math.pi / 2, 0, 0), seg=40)
     cyl("clock_face", 0.145, 0.145, 0.042, (ckx, wy_ + 0.011, 2.17), flat("clock_face", (0.86, 0.82, 0.7), rough=0.6), rot=(math.pi / 2, 0, 0), seg=40)
     decal("clock_numbers", 0.2, 0.2, (ckx, wy_ + 0.0326, 2.17), SOUTH_WALL, art.clock_face(0.2))
@@ -763,7 +833,7 @@ def build_desk_wall_extras():
     group("desk")
     wy_ = -HY + 0.012
     # floating shelf above the corkboard
-    sx = -0.45
+    sx = -0.63
     box("wall_shelf", (1.3, 0.2, 0.03), (sx, -HY + 0.1, 2.02), M_OAK("x"))
     for k in (-1, 1):
         box("wall_shelf_bracket", (0.02, 0.16, 0.12), (sx + k * 0.5, -HY + 0.08, 1.95), M_BLACK)
@@ -782,7 +852,7 @@ def build_desk_wall_extras():
     box("camera_body", (0.13, 0.06, 0.08), (sx + 0.12, -HY + 0.1, 2.075), M_BLACK, bevel=0.008)
     cyl("camera_lens", 0.03, 0.03, 0.05, (sx + 0.12, -HY + 0.15, 2.075), flat("lens", (0.02, 0.02, 0.02), rough=0.2, metal=1), rot=(math.pi / 2, 0, 0))
     # record cabinet with turntable, east of the desk
-    cx, cyy = 1.2, -HY + 0.24
+    cx, cyy = 0.86, -HY + 0.24
     box("cab_top", (0.95, 0.44, 0.03), (cx, cyy, 0.645), M_WALNUT("x"), bevel=0.006)
     box("cab_bottom", (0.95, 0.44, 0.03), (cx, cyy, 0.195), M_WALNUT("x"), bevel=0.006)
     box("cab_back", (0.95, 0.02, 0.45), (cx, cyy - 0.21, 0.42), M_WALNUT("x"), bevel=0)
@@ -812,8 +882,8 @@ def build_desk_wall_extras():
     mug(cx + 0.28, cyy - 0.02, zz, flat("mug_rust", (0.5, 0.18, 0.08), rough=0.3))
     frame("poster_e", 0.56, 0.78, (cx, wy_, 1.52), (0, 0, math.pi), M_OAK("z"), flat("poster_teal", (0.07, 0.22, 0.24), rough=0.7), border=0.025, picture=art.ridge_poster)
     # two prints west of the desk
-    frame("print_sw_a", 0.4, 0.52, (-1.62, wy_, 1.66), (0, 0, math.pi), M_BLACK, flat("print_cream", (0.8, 0.74, 0.6), rough=0.7), border=0.05, picture=art.shapes_print)
-    frame("print_sw_b", 0.3, 0.3, (-1.62, wy_, 1.16), (0, 0, math.pi), M_OAK("z"), flat("print_rust", (0.5, 0.2, 0.1), rough=0.7), border=0.04, picture=art.court_print)
+    frame("print_sw_a", 0.34, 0.44, (-1.74, wy_, 1.7), (0, 0, math.pi), M_BLACK, flat("print_cream", (0.8, 0.74, 0.6), rough=0.7), border=0.05, picture=art.shapes_print)
+    frame("print_sw_b", 0.28, 0.28, (-1.74, wy_, 1.24), (0, 0, math.pi), M_OAK("z"), flat("print_rust", (0.5, 0.2, 0.1), rough=0.7), border=0.04, picture=art.court_print)
 
 
 # ----------------------------------------------------------------------------- west: door, mirror, rack
@@ -874,41 +944,62 @@ def build_west():
         cyl("hanger_hook", 0.003, 0.003, 0.075, (rx, gy, rh - 0.03), flat("hanger_steel", (0.6, 0.6, 0.6), rough=0.3, metal=1), seg=8)
         prism("hanger", [(-hw, -0.055), (0, 0.005), (hw, -0.055), (hw, -0.07), (0, -0.012), (-hw, -0.07)], 0.012, (rx, gy, top + 0.004), M_PINE("x"), rot=(0, 0, yaw))
         gy += step
-    # shoes on the rack shelf, tennis things beside it
-    def shoe(yy, colr, yaw):
-        m = flat("shoe_" + str(colr), colr, rough=0.7)
-        box("shoe_sole", (0.28, 0.1, 0.025), (rx, yy, 0.182), flat("sole", (0.8, 0.78, 0.7), rough=0.7), bevel=0.01, rot=(0, 0, yaw))
-        box("shoe_upper", (0.26, 0.092, 0.07), (rx - 0.005, yy, 0.225), m, bevel=0.03, rot=(0, 0, yaw))
-        box("shoe_collar", (0.11, 0.088, 0.05), (rx - 0.075, yy, 0.262), m, bevel=0.02, rot=(0, 0, yaw))
-    shoe(ry0 + 0.16, (0.85, 0.84, 0.8), 0.06); shoe(ry0 + 0.28, (0.85, 0.84, 0.8), -0.04)
-    shoe(ry0 + 0.52, (0.16, 0.08, 0.04), 0.03); shoe(ry0 + 0.64, (0.16, 0.08, 0.04), -0.05)
-    shoe(ry0 + 0.86, (0.07, 0.09, 0.14), 0.08); shoe(ry0 + 0.98, (0.07, 0.09, 0.14), 0.0)
-    # tennis racket leaning between the mirror and the rack
+    # shoes on the rack shelf: toes point into the room
+    def shoe(yy, upper, sole, yaw, tag_text=None):
+        m = flat("shoe_" + str(upper), upper, rough=0.75, bump=0.3, bump_scale=900)
+        sm = flat("sole_" + str(sole), sole, rough=0.6)
+        c = Vector((rx + 0.02, yy, 0.169))
+        rm_ = Euler((0, 0, yaw)).to_matrix()
+        def taper(ob):                                  # round the toe and narrow the heel, seen from above
+            for vtx in ob.data.vertices:
+                t = vtx.co.x / 0.14
+                vtx.co.y *= (1 - 0.42 * max(0.0, t - 0.25) ** 2 / 0.5625) if t > 0 else (1 - 0.16 * t * t)
+        taper(box("shoe_sole", (0.285, 0.104, 0.03), c + Vector((0, 0, 0.015)), sm, bevel=0.012, rot=(0, 0, yaw)))
+        prof = [(-0.132, 0.0), (0.138, 0.0), (0.14, 0.018), (0.11, 0.04), (0.05, 0.056), (0.0, 0.092), (-0.04, 0.108), (-0.115, 0.104), (-0.137, 0.075)]
+        taper(prism("shoe_upper", prof, 0.092, c + Vector((0, 0, 0.028)), m, rot=(0, 0, yaw), bevel=0.014))
+        box("shoe_laces", (0.07, 0.034, 0.006), c + rm_ @ Vector((0.045, 0, 0.088)), flat("laces_" + str(upper), tuple(min(1, v * 1.1) for v in upper), rough=0.9), bevel=0.003, rot=(0, 0.42, yaw))
+        box("shoe_opening", (0.085, 0.05, 0.004), c + rm_ @ Vector((-0.06, 0, 0.133)), flat("shoe_inside", (0.02, 0.02, 0.02), rough=1), bevel=0.001, rot=(0, 0, yaw))
+        if tag_text:                                    # the black label on the side and on the tongue
+            decal("shoe_tag", 0.034, 0.013, c + rm_ @ Vector((-0.07, -0.0468, 0.07)), (0, 0, yaw), art.tag(tag_text, 0.034, 0.013), rough=0.6)
+            decal("shoe_tag_tongue", 0.026, 0.011, c + rm_ @ Vector((0.008, 0, 0.128)), (-1.1, 0, yaw + math.pi / 2), art.tag(tag_text, 0.026, 0.011), rough=0.6)
+    white, off = (0.86, 0.86, 0.84), (0.9, 0.9, 0.88)
+    shoe(ry0 + 0.16, white, off, 0.06, "VANS"); shoe(ry0 + 0.285, white, off, -0.04, "VANS")
+    shoe(ry0 + 0.52, (0.16, 0.08, 0.04), (0.5, 0.35, 0.2), 0.03); shoe(ry0 + 0.64, (0.16, 0.08, 0.04), (0.5, 0.35, 0.2), -0.05)
+    shoe(ry0 + 0.86, (0.07, 0.09, 0.14), (0.85, 0.84, 0.8), 0.08); shoe(ry0 + 0.98, (0.07, 0.09, 0.14), (0.85, 0.84, 0.8), 0.0)
+    # tennis racket leaning between the mirror and the rack: dark green frame with copper at the throat
     ty = 0.31
     tl = 0.2                                            # lean away from the wall
     base = Vector((x + 0.2, ty, 0.0))
     rmat = Euler((0, tl, 0)).to_matrix()
-    grip = flat("racket_grip", (0.03, 0.03, 0.03), rough=0.9)
-    fr = flat("racket_frame", (0.75, 0.12, 0.08), rough=0.3)
-    cyl("racket_handle", 0.016, 0.016, 0.2, base + rmat @ Vector((0, 0, 0.1)), grip, rot=(0, tl, 0), seg=12)
-    cyl("racket_throat", 0.012, 0.012, 0.16, base + rmat @ Vector((0, 0, 0.27)), fr, rot=(0, tl, 0), seg=12)
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.13, minor_radius=0.011, major_segments=40, minor_segments=10)
+    grip = flat("racket_grip", (0.02, 0.02, 0.02), rough=0.9, bump=0.5, bump_scale=400)
+    fr = flat("racket_frame", (0.02, 0.075, 0.05), rough=0.25, metal=0.55)
+    copper = flat("racket_copper", (0.42, 0.17, 0.06), rough=0.3, metal=0.7)
+    cyl("racket_butt", 0.02, 0.02, 0.012, base + rmat @ Vector((0, 0, 0.006)), flat("butt_cap", (0.8, 0.8, 0.78), rough=0.4), rot=(0, tl, 0), seg=14)
+    cyl("racket_handle", 0.0165, 0.0155, 0.19, base + rmat @ Vector((0, 0, 0.107)), grip, rot=(0, tl, 0), seg=8)
+    cyl("racket_shaft", 0.013, 0.013, 0.05, base + rmat @ Vector((0, 0, 0.225)), fr, rot=(0, tl, 0), seg=12)
+    hz, a_, b_ = 0.535, 0.125, 0.165                    # head centre height, half width, half height
+    for sy in (-1, 1):                                  # the open throat: two arms from the shaft to the head
+        p0 = Vector((0, sy * 0.008, 0.245))
+        p1 = Vector((0, sy * a_ * 0.8, hz - b_ * 0.62))
+        mid, dvec = (p0 + p1) / 2, (p1 - p0)
+        ob = cyl("racket_throat", 0.0085, 0.0085, dvec.length, base + rmat @ mid, copper, seg=10)
+        ob.rotation_euler = (rmat @ dvec.to_track_quat("Z", "Y").to_matrix()).to_euler()
+    bpy.ops.mesh.primitive_torus_add(major_radius=a_, minor_radius=0.0095, major_segments=48, minor_segments=10)
     head = bpy.context.object
     head.name = "racket_head"
     head.data.materials.append(fr)
     bpy.ops.object.shade_smooth()
-    head.scale = (1, 1.28, 1)
-    head.rotation_euler = Euler((math.pi / 2, 0, 0)).to_quaternion().to_euler()
-    head.rotation_euler = (Euler((0, tl, 0)).to_matrix() @ Euler((math.pi / 2, 0, math.pi / 2)).to_matrix()).to_euler()
-    head.location = base + rmat @ Vector((0, 0, 0.5))
+    head.scale = (1, b_ / a_, 1)
+    head.rotation_euler = (rmat @ Euler((math.pi / 2, 0, math.pi / 2)).to_matrix()).to_euler()
+    head.location = base + rmat @ Vector((0, 0, hz))
     head["group"] = "rack"
-    ob = cyl("racket_strings", 0.122, 0.122, 0.002, base + rmat @ Vector((0, 0, 0.5)), strings_mat(), seg=40)
-    ob.scale = (1, 1.28, 1)
+    ob = cyl("racket_strings", a_ - 0.006, a_ - 0.006, 0.002, base + rmat @ Vector((0, 0, hz)), strings_mat(), seg=48)
+    ob.scale = (1, b_ / a_, 1)
     ob.rotation_euler = head.rotation_euler
+    box("racket_bumper", (0.024, 0.16, 0.012), base + rmat @ Vector((0, 0, hz + b_ + 0.002)), flat("bumper", (0.02, 0.02, 0.02), rough=0.6), bevel=0.004, rot=(0, tl, 0))
     ball = flat("tennis", (0.62, 0.75, 0.10), rough=0.9, sheen=0.5)
     sphere("tennis_ball", 0.033, (x + 0.33, 0.27, 0.033), ball)
     sphere("tennis_ball", 0.033, (x + 0.55, 0.2, 0.033), ball)
-    sphere("tennis_ball", 0.033, (x + 0.75, -0.55, 0.033), ball)
 
 
 # ----------------------------------------------------------------------------- outside, lights, camera
@@ -1013,7 +1104,11 @@ def camera_for(view):
 
 
 build_shell()
+_n0 = set(o.name for o in scene.objects)
 build_bookshelf()
+for o in scene.objects:                       # the case is built centred, then moved west to clear the piano
+    if o.name not in _n0:
+        o.location.x -= 0.2
 build_nook()
 build_desk()
 build_desk_wall_extras()
@@ -1039,7 +1134,7 @@ scene.view_settings.exposure = 1.1
 os.makedirs(args.out, exist_ok=True)
 if args.blend:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.out, "room.blend"))
-CLOSE = {"shelf": ((-0.45, 0.75, 1.5), (-0.45, 1.9, 1.5)), "desktop": ((-0.1, -0.75, 1.25), (0.0, -1.9, 0.8)), "deskwall": ((0.2, -0.3, 1.6), (0.2, -1.9, 1.6))}
+CLOSE = {"piano": ((0.3, 0.9, 1.35), (2.05, 1.0, 0.95)), "chair": ((0.2, -0.8, 1.35), (2.05, -1.05, 0.95)), "shoes": ((-1.0, 0.75, 0.75), (-1.7, 0.7, 0.2)), "shelf": ((-0.45, 0.75, 1.5), (-0.45, 1.9, 1.5)), "desktop": ((-0.1, -0.75, 1.25), (0.0, -1.9, 0.8)), "deskwall": ((0.2, -0.3, 1.6), (0.2, -1.9, 1.6))}
 
 
 def close_camera(v):

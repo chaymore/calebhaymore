@@ -342,3 +342,128 @@ def plate(text, w, h, bg, fg, fname="cinzel", scale=0.5, spacing=0.0):
     f = _fit(d, text, fname, W * 0.9, H * scale, spacing * H)
     _text(d, (W / 2, H / 2), text, f, rgb(fg), "mm", spacing * H)
     return _save(_wear(img, key, 0.5), key)
+
+
+def el_capitan(w, h):
+    """A drawn view of El Capitan from the valley floor at sunset: the lit prow, the shaded wall, pines and meadow."""
+    key = f"elcap{w}{h}"
+    W, H = int(w * 2200), int(h * 2200)
+    img = Image.new("RGB", (W, H))
+    d = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        d.line([0, y, W, y], fill=(int(70 + 150 * t), int(110 + 90 * t), int(160 + 10 * t)))
+    # distant wall on the right
+    d.polygon([(W * 0.62, H * 0.55), (W * 0.74, H * 0.4), (W * 0.9, H * 0.36), (W, H * 0.42), (W, H * 0.8), (W * 0.6, H * 0.8)], fill=(150, 140, 150))
+    # El Capitan: the sunlit south-west face and the shaded south-east face meet at the Nose
+    top = [(W * 0.08, H * 0.34), (W * 0.2, H * 0.2), (W * 0.36, H * 0.13), (W * 0.47, H * 0.12), (W * 0.52, H * 0.15)]
+    nose_x = W * 0.52
+    lit = top + [(nose_x, H * 0.8), (W * 0.02, H * 0.8), (W * 0.0, H * 0.5)]
+    d.polygon(lit, fill=(236, 190, 140))
+    shade = [(nose_x, H * 0.15), (W * 0.6, H * 0.2), (W * 0.68, H * 0.3), (W * 0.72, H * 0.46), (W * 0.74, H * 0.8), (nose_x, H * 0.8)]
+    d.polygon(shade, fill=(150, 112, 104))
+    r = random.Random(11)
+    for _ in range(70):                                   # cracks and streaks down the face
+        x = r.uniform(W * 0.05, W * 0.7)
+        y0 = r.uniform(H * 0.2, H * 0.6)
+        col = (206, 160, 118) if x < nose_x else (128, 94, 90)
+        d.line([x, y0, x + r.uniform(-6, 6), y0 + r.uniform(H * 0.05, H * 0.22)], fill=col, width=max(1, W // 500))
+    d.polygon([(W * 0.2, H * 0.42), (W * 0.26, H * 0.36), (W * 0.33, H * 0.4), (W * 0.3, H * 0.52), (W * 0.22, H * 0.5)], fill=(214, 168, 124))
+    # talus, pines, meadow
+    d.polygon([(0, H * 0.72), (W * 0.3, H * 0.68), (W * 0.75, H * 0.7), (W, H * 0.66), (W, H), (0, H)], fill=(52, 66, 52))
+    for i in range(46):
+        x = r.uniform(0, W)
+        base = H * r.uniform(0.74, 0.84)
+        hh = H * r.uniform(0.08, 0.2)
+        ww = hh * 0.28
+        c = r.choice([(28, 44, 36), (36, 54, 42), (22, 36, 30)])
+        d.polygon([(x, base - hh), (x - ww, base), (x + ww, base)], fill=c)
+    d.polygon([(0, H * 0.84), (W, H * 0.82), (W, H), (0, H)], fill=(150, 132, 70))
+    d.polygon([(0, H * 0.93), (W * 0.5, H * 0.9), (W, H * 0.94), (W, H), (0, H)], fill=(96, 110, 120))
+    img = img.filter(ImageFilter.GaussianBlur(W / 1400))
+    return _save(_wear(img, key, 0.5), key)
+
+
+def piano_keys(w, h):
+    key = f"keys{w}{h}"
+    W, H = int(w * 2000), int(h * 2000)
+    img = Image.new("RGB", (W, H), (236, 230, 214))
+    d = ImageDraw.Draw(img)
+    for i in range(53):
+        x = i * W / 52
+        d.line([x, 0, x, H], fill=(120, 112, 98), width=max(1, W // 1400))
+    return _save(img, key)
+
+
+def sheet_music(w, h):
+    key = f"sheet{w}{h}"
+    W, H = int(w * 2600), int(h * 2600)
+    img = Image.new("RGB", (W, H), (238, 232, 214))
+    d = ImageDraw.Draw(img)
+    d.line([W / 2, 0, W / 2, H], fill=(200, 192, 170), width=3)
+    r = random.Random(3)
+    for page in (0, 1):
+        x0, x1 = W * (0.05 + 0.5 * page), W * (0.45 + 0.5 * page)
+        for s in range(6):
+            y = H * (0.14 + s * 0.14)
+            for k in range(5):
+                d.line([x0, y + k * H * 0.014, x1, y + k * H * 0.014], fill=(60, 56, 50), width=1)
+            x = x0 + W * 0.02
+            while x < x1 - W * 0.01:
+                ny = y + r.randint(-2, 6) * H * 0.007
+                d.ellipse([x, ny, x + W * 0.012, ny + H * 0.011], fill=(30, 28, 26))
+                d.line([x + W * 0.012, ny + H * 0.005, x + W * 0.012, ny - H * 0.04], fill=(30, 28, 26), width=2)
+                x += W * r.uniform(0.018, 0.04)
+    return _save(img, key)
+
+
+def _sphere_map(fn, W=1024, H=512):
+    """Equirectangular image from a function of the unit direction (numpy arrays x, y, z -> RGB array)."""
+    import numpy as np
+    u = (np.arange(W) + 0.5) / W * 2 * np.pi - np.pi
+    v = (np.arange(H) + 0.5) / H * np.pi - np.pi / 2
+    uu, vv = np.meshgrid(u, v)
+    x, y, z = np.cos(vv) * np.cos(uu), np.cos(vv) * np.sin(uu), np.sin(vv)
+    return Image.fromarray(fn(np, x, y, z).astype("uint8")).transpose(Image.FLIP_TOP_BOTTOM)
+
+
+def soccer_ball():
+    key = "soccer3"
+
+    def fn(np, x, y, z):
+        phi = (1 + 5 ** 0.5) / 2
+        vs = []
+        for a in (-1, 1):
+            for b in (-phi, phi):
+                vs += [(0, a, b), (a, b, 0), (b, 0, a)]
+        vs = np.array(vs) / np.linalg.norm(vs[0])
+        dots = np.stack([x * vx + y * vy + z * vz for vx, vy, vz in vs])
+        best = dots.max(axis=0)
+        second = np.sort(dots, axis=0)[-2]
+        out = np.full(x.shape + (3,), 232.0)
+        out[(best - second) < 0.012] = 150          # seams between the white panels
+        out[best > 0.952] = 26                      # black pentagons
+        return out
+    return _save(_sphere_map(fn), key)
+
+
+def basketball():
+    key = "basketball2"
+
+    def fn(np, x, y, z):
+        out = np.empty(x.shape + (3,))
+        out[...] = (196, 88, 30)
+        line = (np.abs(z) < 0.022) | (np.abs(y) < 0.022) | (np.abs(np.abs(x) - 0.62) < 0.02)
+        out[line] = (24, 20, 18)
+        return out
+    return _save(_sphere_map(fn), key)
+
+
+def tag(text, w, h, bg="#0c0c0c", fg="#f2f2f2", fname="oswald-b"):
+    key = f"tag{text}{w}{h}{bg}"
+    W, H = max(40, int(w * 9000)), max(16, int(h * 9000))
+    img = Image.new("RGB", (W, H), rgb(bg))
+    d = ImageDraw.Draw(img)
+    f = _fit(d, text, fname, W * 0.86, H * 0.7)
+    d.text((W / 2, H / 2), text, font=f, fill=rgb(fg), anchor="mm")
+    return _save(img, key)

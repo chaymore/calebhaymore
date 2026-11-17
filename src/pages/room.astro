@@ -11,17 +11,17 @@ const live = projects.filter((p) => !p.draft).slice(0, 5);
 // Camera positions use the scene's axes: x east, y north, z up, in metres.
 const hotspots: Hotspot[] = [
   { group: 'bookshelf', label: 'Bookshelf: writing and research', eye: [-0.25, 0.45, 1.48], look: [-0.25, 1.9, 1.46] },
-  { group: 'nook', label: 'Window seat: about me', eye: [0.35, 0, 1.3], look: [2.05, 0, 1.1] },
+  { group: 'nook', label: 'Reading chair: about me', eye: [0.25, -0.75, 1.35], look: [2.05, -1.1, 1.0] },
   { group: 'desk', label: 'Desk: projects', eye: [-0.25, -0.45, 1.3], look: [-0.3, -1.9, 1.05] },
   { group: 'door', label: 'Door: contact', eye: [-0.6, -1.2, 1.35], look: [-2.05, -1.27, 1.15] },
   { group: 'mirror', label: 'Mirror: ask me something', eye: [-0.75, -0.08, 1.2], look: [-2.05, -0.08, 0.95] },
   { group: 'rack', label: 'Clothing rack: what I do', eye: [-0.6, 0.96, 1.2], look: [-2.05, 0.96, 1.0] },
 ];
 ---
-<Layout title="Caleb Haymore" description="Caleb Haymore's room. Look around: the bookshelf, the desk, the window seat, the mirror, the clothing rack, and the door each open part of the site." minimal bodyClass="room-page">
+<Layout title="Caleb Haymore" description="Caleb Haymore's room. Look around: the bookshelf, the desk, the reading chair, the mirror, the clothing rack, and the door each open part of the site." minimal bodyClass="room-page">
   <main id="room" class="room" aria-label="Caleb Haymore's room">
     <h1 class="sr-only">{site.name}</h1>
-    <canvas aria-label="A small room at golden hour with a bookshelf, a window seat, a desk, a door, a mirror, and a clothing rack. Each one opens part of the site."></canvas>
+    <canvas aria-label="A small room at golden hour with a bookshelf, a piano, a reading chair, a desk, a door, a mirror, and a clothing rack. Each one opens part of the site."></canvas>
     <p class="room-loading" data-room-loading>Opening the room</p>
     <p class="room-label" data-room-label hidden></p>
 
@@ -55,7 +55,7 @@ const hotspots: Hotspot[] = [
 
     <section class="room-panel" data-panel="nook" hidden aria-label="About">
       <button type="button" class="room-close" data-close>[ Close ]</button>
-      <p class="eyebrow">Window seat:</p>
+      <p class="eyebrow">Reading chair:</p>
       <h2>About me</h2>
       <p>{site.intro}</p>
       <ul>
