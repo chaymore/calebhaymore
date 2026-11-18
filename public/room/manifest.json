@@ -68,7 +68,7 @@
   "rack": {
    "texture": "rack.jpg",
    "size": 1536,
-   "triangles": 9824
+   "triangles": 116060
   },
   "rack__detail": {
    "texture": "rack__detail.jpg",

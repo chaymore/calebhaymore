@@ -886,6 +886,310 @@ def build_desk_wall_extras():
     frame("print_sw_b", 0.28, 0.28, (-1.74, wy_, 1.24), (0, 0, math.pi), M_OAK("z"), flat("print_rust", (0.5, 0.2, 0.1), rough=0.7), border=0.04, picture=art.court_print)
 
 
+# ----------------------------------------------------------------------------- soft shapes: clothes and shoes
+def rings_mesh(name, rings, mat, caps=(True, True), ngon_caps=False, loc=(0, 0, 0)):
+    """A smooth surface through closed rings of points (all rings the same length). Caps close the ends."""
+    bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("UVMap")
+    vs = [[bm.verts.new(p) for p in r] for r in rings]
+    n, m = len(rings[0]), len(rings)
+    for i in range(m - 1):
+        for j in range(n):
+            f = bm.faces.new((vs[i][j], vs[i][(j + 1) % n], vs[i + 1][(j + 1) % n], vs[i + 1][j]))
+            f.smooth = True
+            for l, (a, b) in zip(f.loops, ((j, i), (j + 1, i), (j + 1, i + 1), (j, i + 1))):
+                l[uv].uv = (a / n, b / (m - 1))
+    for k, end in enumerate((0, m - 1)):
+        if not caps[k]:
+            continue
+        if ngon_caps:
+            f = bm.faces.new(vs[end] if k else list(reversed(vs[end])))
+            f.smooth = True
+        else:
+            c = sum((v.co for v in vs[end]), Vector()) / n
+            cv = bm.verts.new(c)
+            for j in range(n):
+                f = bm.faces.new((vs[end][j], vs[end][(j + 1) % n], cv))
+                f.smooth = True
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    ob = _finish(name, bm, mat, loc, None)
+    return ob
+
+
+def soften(ob, levels=1):
+    """Applies a subdivision surface, so a coarse cage becomes a soft, rounded form."""
+    mod = ob.modifiers.new("soften", "SUBSURF")
+    mod.levels = levels
+    mod.render_levels = levels
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    ob.modifiers.clear()
+    old = ob.data
+    ob.data = me
+    bpy.data.meshes.remove(old)
+    return ob
+
+
+def tube(name, path, radii, mat, seg=14, squash=1.0, caps=(True, True), side_hint=None):
+    """A tube along a list of points, with a radius at each point. squash flattens it along the axis
+    away from side_hint (cloth lies flat)."""
+    rings = []
+    for i, p in enumerate(path):
+        t = (path[min(i + 1, len(path) - 1)] - path[max(i - 1, 0)]).normalized()
+        if side_hint is not None:
+            side = side_hint - t * side_hint.dot(t)
+        else:
+            side = t.cross(Vector((0, 0, 1)))
+        if side.length < 1e-4:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = side.cross(t).normalized()
+        r = radii[i]
+        rings.append([p + side * (math.cos(a) * r) + up * (math.sin(a) * r * squash)
+                      for a in (2 * math.pi * k / seg for k in range(seg))])
+    return rings_mesh(name, rings, mat, caps)
+
+
+def plaid(name, base, stripe, line, scale=55.0):
+    """A flannel check: two sets of soft bands that cross, plus thin lines."""
+    if name in _cache:
+        return _cache[name]
+    m, nt, b = _principled(name)
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(tc.outputs["Object"], sep.inputs[0])
+
+    def band(axis, k, sharp):
+        mul = nt.nodes.new("ShaderNodeMath"); mul.operation = "MULTIPLY"; mul.inputs[1].default_value = k
+        nt.links.new(sep.outputs[axis], mul.inputs[0])
+        sn = nt.nodes.new("ShaderNodeMath"); sn.operation = "SINE"
+        nt.links.new(mul.outputs[0], sn.inputs[0])
+        gt = nt.nodes.new("ShaderNodeMath"); gt.operation = "GREATER_THAN"; gt.inputs[1].default_value = sharp
+        nt.links.new(sn.outputs[0], gt.inputs[0])
+        return gt
+    bx, bz = band("X", scale, 0.35), band("Z", scale, 0.35)
+    lx, lz = band("X", scale * 3.0, 0.93), band("Z", scale * 3.0, 0.93)
+    add = nt.nodes.new("ShaderNodeMath"); add.operation = "ADD"
+    nt.links.new(bx.outputs[0], add.inputs[0]); nt.links.new(bz.outputs[0], add.inputs[1])
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    e = ramp.color_ramp.elements
+    e[0].position = 0.0; e[0].color = (*base, 1)
+    e[1].position = 1.0; e[1].color = (*[c * 0.35 for c in stripe], 1)
+    mid = e.new(0.5); mid.color = (*stripe, 1)
+    ramp.color_ramp.interpolation = "CONSTANT"
+    sc = nt.nodes.new("ShaderNodeMath"); sc.operation = "MULTIPLY"; sc.inputs[1].default_value = 0.5
+    nt.links.new(add.outputs[0], sc.inputs[0]); nt.links.new(sc.outputs[0], ramp.inputs["Fac"])
+    lines = nt.nodes.new("ShaderNodeMath"); lines.operation = "MAXIMUM"
+    nt.links.new(lx.outputs[0], lines.inputs[0]); nt.links.new(lz.outputs[0], lines.inputs[1])
+    mix = nt.nodes.new("ShaderNodeMixRGB"); mix.inputs["Color2"].default_value = (*line, 1)
+    nt.links.new(lines.outputs[0], mix.inputs["Fac"]); nt.links.new(ramp.outputs["Color"], mix.inputs["Color1"])
+    nt.links.new(mix.outputs["Color"], b.inputs["Base Color"])
+    _set(b, "Roughness", 0.92)
+    _set(b, "Sheen Weight", 0.4)
+    _cache[name] = m
+    return m
+
+
+def garment(name, kind, at, top, yaw, mat, length, half_w, depth, sleeve=0.6, seed=0, trim=None):
+    """A top hanging from a hanger. at: (x, y) of the hanger hook; top: z of the shoulders' highest point.
+
+    Garment-local axes: x across the shoulders, -y is the front, z is up. kind: shirt, polo, blazer, denim, sweater, field.
+    """
+    r = random.Random(seed)
+    rm = Euler((0, 0, yaw)).to_matrix()
+    O = Vector((at[0], at[1], 0))
+    W = lambda p: O + rm @ Vector(p)
+    n, rows = 28, 22
+    folds, ph = r.choice((5, 6, 7)), r.uniform(0, 6.28)
+    tail = 0.045 if kind in ("shirt",) else 0.0
+    rings = []
+    for i in range(rows):
+        t = i / (rows - 1)
+        dz = 0.012 + t * length
+        # half width: narrow neck, sloped shoulders, straight body, a slight flare at the hem
+        hw = half_w * (0.36 + 0.64 * min(1.0, dz / 0.06) ** 0.6) * (1 + 0.04 * t * t)
+        hd = depth * (0.55 + 0.45 * min(1.0, dz / 0.08)) * (1 - 0.15 * t)
+        ring = []
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            cx, cy = math.cos(a), math.sin(a)
+            amp = (0.002 + 0.011 * t) * (1.4 if kind in ("sweater", "field") else 1.0)
+            fold = amp * math.sin(folds * a + ph + 3.0 * t)
+            nx, ny = cx / hw, cy / hd
+            nl = math.hypot(nx, ny)
+            x = hw * cx + fold * nx / nl
+            y = hd * cy + fold * ny / nl
+            z = top - dz - 0.2 * max(0.0, abs(x) - 0.06) * max(0.0, 1 - dz / 0.2)
+            if tail and t > 0.82:
+                z -= tail * (1 - (x / hw) ** 2) * (t - 0.82) / 0.18
+            ring.append(W((x, y, z)))
+        rings.append(ring)
+    body = soften(rings_mesh(name, rings, mat), 1)
+    hem_z = top - 0.012 - length
+
+    # sleeves hang from the shoulders, a little forward, slightly bent at the elbow
+    sl = 0.22 if kind == "polo" else length * sleeve
+    for s in (-1, 1):
+        sx = s * half_w * 0.94
+        z0 = top - 0.045 - 0.2 * max(0.0, abs(sx) - 0.06) * 0.75
+        p = [Vector((sx, 0.0, z0)), Vector((sx + s * 0.03, -0.004, z0 - sl * 0.25)), Vector((sx + s * 0.035, -0.012, z0 - sl * 0.55)),
+             Vector((sx + s * 0.028, -0.026, z0 - sl * 0.82)), Vector((sx + s * 0.022, -0.03, z0 - sl))]
+        rad = [0.06, 0.05, 0.045, 0.04, 0.037] if kind != "polo" else [0.06, 0.057, 0.055, 0.054, 0.053]
+        sq = 0.62 if kind in ("shirt", "polo") else 0.78
+        soften(tube(name + "_sleeve", [W(q) for q in p], rad, mat, seg=12, squash=sq, side_hint=rm @ Vector((1, 0, 0))), 1)
+        if kind in ("shirt", "denim", "field", "sweater"):            # cuff
+            e = p[-1]
+            cuff = [e + Vector((0, 0, 0.012)), e - Vector((0, 0, 0.03))]
+            soften(tube(name + "_cuff", [W(q) for q in cuff], [0.039, 0.039], trim or mat, seg=12, squash=sq, side_hint=rm @ Vector((1, 0, 0))), 1)
+
+    # neck and front details
+    front = lambda x, z, off=0.0: W((x, -depth * 0.55 - 0.004 - off, z))
+    if kind in ("shirt", "denim", "polo", "field"):
+        col = trim or mat
+        for s in (-1, 1):                                            # collar points fold down onto the shoulders
+            prism(name + "_collar", [(0.0, 0.0), (s * 0.075, -0.015), (s * 0.05, -0.07), (s * 0.012, -0.035)], 0.008,
+                  W((0, -depth * 0.32, top + 0.006)), col, rot=(0.0, 0, yaw), bevel=0.0025)
+        soften(tube(name + "_collar_band", [W((0, 0, top - 0.004)), W((0, 0, top + 0.024))], [0.068, 0.072], col, seg=18, squash=0.5, side_hint=rm @ Vector((1, 0, 0))), 1)
+    if kind in ("shirt", "denim", "polo", "field", "blazer"):         # placket and buttons
+        btn = flat("button_" + kind, (0.85, 0.83, 0.78) if kind in ("shirt", "polo") else (0.14, 0.1, 0.07), rough=0.3, metal=0.3 if kind == "denim" else 0.0)
+        nb = 2 if kind in ("polo", "blazer") else 6
+        z_start = top - (0.06 if kind != "blazer" else 0.38)
+        span = 0.12 if kind == "polo" else (0.14 if kind == "blazer" else length - 0.12)
+        if kind not in ("blazer",):
+            box(name + "_placket", (0.03, 0.004, span + 0.02), front(0, z_start - span / 2), trim or mat, bevel=0.0015, rot=(0, 0, yaw))
+        for b_ in range(nb):
+            zb = z_start - b_ * span / max(1, nb - 1)
+            cyl(name + "_button", 0.0065, 0.0065, 0.004, front(0, zb, 0.004), btn, seg=12, rot=(math.pi / 2, 0, yaw))
+    if kind == "blazer":                                              # lapels, pocket flaps, chest pocket
+        for s in (-1, 1):
+            prism(name + "_lapel", [(0, 0.0), (s * 0.085, -0.02), (s * 0.1, -0.12), (s * 0.03, -0.33), (s * 0.006, -0.33)], 0.006,
+                  front(0, top - 0.01), mat, rot=(0, 0, yaw), bevel=0.002)
+            box(name + "_flap", (0.13, 0.005, 0.04), front(s * 0.11, top - 0.53), mat, bevel=0.003, rot=(0, 0, yaw))
+        box(name + "_breast_pocket", (0.09, 0.004, 0.018), front(-0.1, top - 0.2), mat, bevel=0.002, rot=(0, 0, yaw))
+        box(name + "_shirt_v", (0.06, 0.002, 0.14), front(0, top - 0.09, -0.002), flat("shirt_under", (0.85, 0.85, 0.83), rough=0.8), bevel=0.001, rot=(0, 0, yaw))
+    if kind in ("denim", "field"):                                    # chest pockets with flaps
+        for s in (-1, 1):
+            box(name + "_pocket", (0.11, 0.005, 0.12), front(s * 0.1, top - 0.19), mat, bevel=0.004, rot=(0, 0, yaw))
+            box(name + "_pocket_flap", (0.115, 0.007, 0.035), front(s * 0.1, top - 0.13, 0.003), trim or mat, bevel=0.003, rot=(0, 0, yaw))
+    if kind == "sweater":                                             # ribbed neck and hem
+        soften(tube(name + "_neck_rib", [W((0, 0, top - 0.002)), W((0, 0, top + 0.016))], [0.075, 0.075], trim or mat, seg=18, squash=0.55, side_hint=rm @ Vector((1, 0, 0))), 1)
+        hem = [[W((half_w * 1.04 * math.cos(2 * math.pi * k / 28), depth * 0.5 * math.sin(2 * math.pi * k / 28), hem_z + dz)) for k in range(28)] for dz in (0.0, 0.05)]
+        soften(rings_mesh(name + "_hem_rib", hem, trim or mat, caps=(False, False)), 1)
+    return body
+
+
+def trousers(name, at, top, yaw, mat, width=0.2, drop=0.42, seed=0):
+    """Trousers folded over the hanger bar: an upside-down U of cloth with both halves hanging down."""
+    r = random.Random(seed)
+    rm = Euler((0, 0, yaw)).to_matrix()
+    O = Vector((at[0], at[1], top))
+    outline = []
+    th, gap = 0.016, 0.012
+    for k in range(12):                                     # outside of the fold
+        a = math.pi * k / 11
+        outline.append((-(gap + th) * math.cos(a), (gap + th) * math.sin(a)))
+    outline = [(-(gap + th), -drop)] + outline + [((gap + th) * 1.05, -drop * 0.96)]
+    inner = [(gap * math.cos(math.pi * k / 11), gap * math.sin(math.pi * k / 11)) for k in range(12)]
+    outline += [(gap, -drop * 0.96)] + inner + [(-gap, -drop)]
+    rings = []
+    for i in range(9):
+        x = -width / 2 + width * i / 8
+        wob = 0.003 * math.sin(i * 1.9 + r.uniform(0, 3))
+        rings.append([O + rm @ Vector((x, y + wob * (1 if y > 0 else -1), z)) for (y, z) in outline])
+    return soften(rings_mesh(name, rings, mat, ngon_caps=True), 1)
+
+
+def hanger(name, at, top, yaw, half_w, bar=False):
+    rm = Euler((0, 0, yaw)).to_matrix()
+    O = Vector((at[0], at[1], 0))
+    W = lambda p: O + rm @ Vector(p)
+    steel = flat("hanger_steel", (0.6, 0.6, 0.6), rough=0.3, metal=1)
+    hook = [W((0, 0, top + 0.045)), W((0.012, 0, top + 0.075)), W((0.0, 0, top + 0.09)), W((-0.016, 0, top + 0.08)), W((-0.018, 0, top + 0.064))]
+    tube(name + "_hook", hook, [0.0028] * 5, steel, seg=8)
+    arm = [W((-half_w, 0, top - 0.05)), W((-half_w * 0.5, 0, top - 0.02)), W((0, 0, top + 0.005)), W((half_w * 0.5, 0, top - 0.02)), W((half_w, 0, top - 0.05))]
+    soften(tube(name, arm, [0.009, 0.011, 0.012, 0.011, 0.009], M_PINE("x"), seg=10, squash=0.7), 1)
+    cyl(name + "_neck", 0.004, 0.004, 0.045, W((0, 0, top + 0.026)), steel, seg=8)
+    if bar:
+        cyl(name + "_bar", 0.005, 0.005, 2 * half_w - 0.02, W((0, 0, top - 0.06)), M_PINE("x"), seg=10, rot=(0, math.pi / 2, yaw))
+
+
+def sneaker(name, c, yaw, upper, sole, style, tag_text=None, mirror=1):
+    """A shoe lying on its sole, toe toward +x of its own frame. style: 'skate' (chunky, low), 'dress', 'runner'."""
+    rm = Euler((0, 0, yaw)).to_matrix()
+    W = lambda p: Vector(c) + rm @ Vector(p)
+    L = {"skate": 0.29, "dress": 0.3, "runner": 0.29}[style]
+    sole_h = {"skate": 0.032, "dress": 0.016, "runner": 0.034}[style]
+    hmax = {"skate": 0.068, "dress": 0.058, "runner": 0.066}[style]
+    wmax = {"skate": 0.05, "dress": 0.045, "runner": 0.048}[style]
+
+    def half_width(u):                                     # u: 0 at the heel, 1 at the toe
+        heel = 0.82 + 0.18 * math.sin(min(1.0, u / 0.25) * math.pi / 2)
+        toe = math.cos(max(0.0, (u - 0.72) / 0.28) * math.pi / 2) ** 0.55
+        waist = 1 - 0.13 * math.exp(-((u - 0.45) / 0.12) ** 2)
+        return wmax * heel * toe * waist + 0.004
+
+    def spring(u):                                         # the toe lifts off the ground
+        return 0.016 * max(0.0, (u - 0.78) / 0.22) ** 2
+
+    def height(u):                                         # top line: low toe box, rising instep, collar at the heel
+        if u > 0.62:
+            return hmax * (0.34 + 0.66 * (1 - (u - 0.62) / 0.38) ** 1.4) * (1 - 0.6 * max(0.0, (u - 0.9) / 0.1))
+        return hmax * (1.0 - 0.06 * math.cos(u / 0.62 * math.pi))
+
+    n, rows = 20, 26
+    sole_rings, up_rings = [], []
+    for i in range(rows):
+        u = i / (rows - 1)
+        x = -L / 2 + L * u
+        hw = half_width(u)
+        sr, ur = [], []
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            # sole: a rounded slab
+            sr.append(W((x, mirror * (hw + 0.004) * math.cos(a), spring(u) + sole_h / 2 + sole_h / 2 * max(-1.0, min(1.0, 1.6 * math.sin(a))))))
+            # upper: flat underneath, an arch on top
+            s = math.sin(a)
+            yy = hw * math.cos(a) * (1 - 0.1 * max(0.0, s))
+            zz = sole_h * 0.85 + (height(u) * max(0.0, s) ** 0.75 if s > 0 else 0.004 * s)
+            ur.append(W((x, mirror * yy, spring(u) + zz)))
+        sole_rings.append(sr)
+        up_rings.append(ur)
+    sm = flat("sole_" + style + str(sole), sole, rough=0.55, bump=0.2, bump_scale=300)
+    um = flat("upper_" + style + str(upper), upper, rough=0.35 if style == "dress" else 0.8, bump=0.25 if style != "dress" else 0.05, bump_scale=900)
+    soften(rings_mesh(name + "_sole", sole_rings, sm), 1)
+    soften(rings_mesh(name + "_upper", up_rings, um), 1)
+    # the opening: a padded collar around a dark hollow, near the heel
+    cx_ = -L / 2 + L * 0.2
+    ztop = sole_h * 0.85 + height(0.2)
+    ring = [W((cx_ + 0.055 * math.cos(2 * math.pi * k / 18), mirror * 0.032 * math.sin(2 * math.pi * k / 18), ztop - 0.004)) for k in range(18)]
+    hole = [W((cx_ + 0.05 * math.cos(2 * math.pi * k / 18), mirror * 0.027 * math.sin(2 * math.pi * k / 18), ztop + 0.002)) for k in range(18)]
+    dark = flat("shoe_inside", (0.02, 0.018, 0.016), rough=1)
+    rings_mesh(name + "_hollow", [ring, hole], dark, caps=(False, True))
+    collar_path = ring + ring[:1]
+    tube(name + "_collar", [p + Vector((0, 0, 0.004)) for p in collar_path], [0.008] * len(collar_path), um if style == "dress" else flat("collar_pad" + str(upper), tuple(c_ * 0.92 for c_ in upper), rough=0.85), seg=8, caps=(False, False))
+    # tongue and laces across the instep
+    lace_m = flat("laces" + style + str(upper), (0.92, 0.92, 0.9) if style != "dress" else (0.1, 0.07, 0.05), rough=0.9)
+    for j in range(5 if style != "dress" else 3):
+        u = 0.36 + j * 0.065
+        x = -L / 2 + L * u
+        z = sole_h * 0.85 + height(u) + spring(u) + 0.0025
+        hw = half_width(u) * 0.55
+        for s in (-1, 1):
+            p0, p1 = W((x - 0.012, -hw * s, z - 0.002)), W((x + 0.012, hw * s, z - 0.002))
+            ob = cyl(name + "_lace", 0.0024, 0.0024, (p1 - p0).length, (p0 + p1) / 2, lace_m, seg=6)
+            ob.rotation_euler = (p1 - p0).to_track_quat("Z", "Y").to_euler()
+    if tag_text:                                           # small black labels: heel tab and the outer side
+        hz = sole_h * 0.85 + height(0.0) * 0.55
+        decal(name + "_heel_tag", 0.03, 0.012, W((-L / 2 + 0.0, 0, hz + 0.01)), (0, 0, yaw - math.pi / 2), art.tag(tag_text, 0.03, 0.012), rough=0.6)
+        side = W((-L / 2 + L * 0.3, -mirror * (half_width(0.3) + 0.0006), sole_h + 0.03))
+        decal(name + "_side_tag", 0.03, 0.011, side, (0, 0, yaw if mirror > 0 else yaw + math.pi), art.tag(tag_text, 0.03, 0.011), rough=0.6)
+    if style == "dress":                                   # a toe cap seam
+        u = 0.83
+        seam = [W((-L / 2 + L * u + 0.008 * math.cos(math.pi * k / 10 - math.pi / 2), mirror * half_width(u) * math.sin(math.pi * k / 10 - math.pi / 2) * 1.0, sole_h * 0.85 + spring(u) + height(u) * max(0.0, math.cos(math.pi * k / 10 - math.pi / 2)) ** 0.75 + 0.0015)) for k in range(11)]
+        tube(name + "_seam", seam, [0.0015] * len(seam), flat("seam_dark", (0.05, 0.03, 0.02), rough=0.6), seg=6)
+
+
 # ----------------------------------------------------------------------------- west: door, mirror, rack
 def build_west():
     x = -HX
@@ -924,48 +1228,37 @@ def build_west():
         cyl("rack_foot", 0.014, 0.014, 0.5, (rx, yy, 0.014), M_BLACK, rot=(0, math.pi / 2, 0))
     cyl("rack_rail", 0.014, 0.014, ry1 - ry0 + 0.06, (rx, (ry0 + ry1) / 2, rh), M_BLACK, rot=(math.pi / 2, 0, 0))
     box("rack_shelf", (0.4, ry1 - ry0, 0.018), (rx, (ry0 + ry1) / 2, 0.16), M_PINE("y"))
-    garments = [("blazer_navy", (0.035, 0.045, 0.09), 0.78, 0.085, 0.46), ("oxford_white", (0.82, 0.82, 0.80), 0.74, 0.04, 0.42),
-                ("oxford_blue", (0.42, 0.55, 0.72), 0.74, 0.04, 0.42), ("flannel_red", (0.42, 0.07, 0.05), 0.72, 0.05, 0.44),
-                ("denim", (0.12, 0.20, 0.34), 0.66, 0.07, 0.46), ("polo_white", (0.86, 0.86, 0.84), 0.62, 0.035, 0.42),
-                ("sweater_oat", (0.62, 0.52, 0.36), 0.64, 0.075, 0.46), ("jacket_olive", (0.17, 0.19, 0.09), 0.70, 0.08, 0.48)]
-    gy = ry0 + 0.1
-    step = (ry1 - ry0 - 0.2) / (len(garments) - 1)
-    for i, (nm, colr, length, thick, sh_w) in enumerate(garments):
-        m = cloth(nm, colr)
-        hw = sh_w / 2
-        yaw = math.pi / 2 + R.uniform(-0.12, 0.12)      # garment plane across the rail
-        pts = [(-hw, -0.06), (-0.06, 0.0), (0.06, 0.0), (hw, -0.06), (hw + 0.012, -length), (-hw - 0.012, -length)]
-        top = rh - 0.07
-        prism("garment_" + nm, pts, thick, (rx, gy, top), m, rot=(0, 0, yaw), bevel=min(0.015, thick * 0.3))
-        for s in (-1, 1):                                # sleeves
-            sl = length * R.uniform(0.72, 0.9) if "polo" not in nm else 0.24
-            off = Euler((0, 0, yaw)).to_matrix() @ Vector((s * (hw + 0.035), 0, 0))
-            box("sleeve_" + nm, (0.085, thick * 0.9, sl), Vector((rx, gy, top - 0.07 - sl / 2)) + off, m, bevel=min(0.02, thick * 0.4), rot=(0, s * 0.09, yaw))
-        cyl("hanger_hook", 0.003, 0.003, 0.075, (rx, gy, rh - 0.03), flat("hanger_steel", (0.6, 0.6, 0.6), rough=0.3, metal=1), seg=8)
-        prism("hanger", [(-hw, -0.055), (0, 0.005), (hw, -0.055), (hw, -0.07), (0, -0.012), (-hw, -0.07)], 0.012, (rx, gy, top + 0.004), M_PINE("x"), rot=(0, 0, yaw))
-        gy += step
+    gyaw = 0.42                                          # garments hang across the rail, turned a little toward the room
+    gtop = rh - 0.075
+    lin = art.lin
+    wardrobe = [
+        ("blazer_navy", "blazer", cloth("blazer_navy", lin("#1b2236")), None, 0.74, 0.225, 0.085, 0.82),
+        ("oxford_white", "shirt", cloth("oxford_white", lin("#ecebe6")), None, 0.76, 0.205, 0.05, 0.8),
+        ("oxford_blue", "shirt", cloth("oxford_blue", lin("#9fb6d3")), None, 0.76, 0.205, 0.05, 0.8),
+        ("flannel", "shirt", plaid("flannel_plaid", lin("#7a1f1c"), lin("#2b2f3a"), lin("#d9cdb0")), cloth("flannel_trim", lin("#5c1715")), 0.74, 0.21, 0.055, 0.78),
+        ("chinos", "trousers", cloth("chinos_khaki", lin("#b9a27a")), None, 0.0, 0.0, 0.0, 0.0),
+        ("denim_jacket", "denim", flat("denim", lin("#3d5878"), rough=0.85, bump=0.6, bump_scale=900), flat("denim_seam", lin("#4f6d92"), rough=0.85), 0.6, 0.225, 0.075, 0.82),
+        ("sweater_oat", "sweater", flat("knit_oat", lin("#cdb994"), rough=0.95, sheen=0.5, bump=0.9, bump_scale=420), flat("knit_rib", lin("#bfa983"), rough=0.95, bump=1.0, bump_scale=900), 0.62, 0.225, 0.08, 0.84),
+        ("field_jacket", "field", cloth("field_olive", lin("#4d5233")), cloth("field_trim", lin("#3f4329")), 0.7, 0.23, 0.085, 0.83),
+    ]
+    step = (ry1 - ry0 - 0.16) / (len(wardrobe) - 1)
+    for i, (nm, kind, m, trim, length, hw, dep, slv) in enumerate(wardrobe):
+        gy = ry0 + 0.08 + i * step
+        yaw = gyaw + R.uniform(-0.06, 0.06)
+        if kind == "trousers":
+            hanger("hanger_" + nm, (rx, gy), gtop, yaw, 0.19, bar=True)
+            trousers("garment_" + nm, (rx, gy), gtop - 0.06, yaw, m, width=0.24, drop=0.46, seed=i)
+            continue
+        hanger("hanger_" + nm, (rx, gy), gtop, yaw, hw * 0.92)
+        garment("garment_" + nm, kind, (rx, gy), gtop, yaw, m, length, hw, dep, sleeve=slv, seed=i, trim=trim)
     # shoes on the rack shelf: toes point into the room
-    def shoe(yy, upper, sole, yaw, tag_text=None):
-        m = flat("shoe_" + str(upper), upper, rough=0.75, bump=0.3, bump_scale=900)
-        sm = flat("sole_" + str(sole), sole, rough=0.6)
-        c = Vector((rx + 0.02, yy, 0.169))
-        rm_ = Euler((0, 0, yaw)).to_matrix()
-        def taper(ob):                                  # round the toe and narrow the heel, seen from above
-            for vtx in ob.data.vertices:
-                t = vtx.co.x / 0.14
-                vtx.co.y *= (1 - 0.42 * max(0.0, t - 0.25) ** 2 / 0.5625) if t > 0 else (1 - 0.16 * t * t)
-        taper(box("shoe_sole", (0.285, 0.104, 0.03), c + Vector((0, 0, 0.015)), sm, bevel=0.012, rot=(0, 0, yaw)))
-        prof = [(-0.132, 0.0), (0.138, 0.0), (0.14, 0.018), (0.11, 0.04), (0.05, 0.056), (0.0, 0.092), (-0.04, 0.108), (-0.115, 0.104), (-0.137, 0.075)]
-        taper(prism("shoe_upper", prof, 0.092, c + Vector((0, 0, 0.028)), m, rot=(0, 0, yaw), bevel=0.014))
-        box("shoe_laces", (0.07, 0.034, 0.006), c + rm_ @ Vector((0.045, 0, 0.088)), flat("laces_" + str(upper), tuple(min(1, v * 1.1) for v in upper), rough=0.9), bevel=0.003, rot=(0, 0.42, yaw))
-        box("shoe_opening", (0.085, 0.05, 0.004), c + rm_ @ Vector((-0.06, 0, 0.133)), flat("shoe_inside", (0.02, 0.02, 0.02), rough=1), bevel=0.001, rot=(0, 0, yaw))
-        if tag_text:                                    # the black label on the side and on the tongue
-            decal("shoe_tag", 0.034, 0.013, c + rm_ @ Vector((-0.07, -0.0468, 0.07)), (0, 0, yaw), art.tag(tag_text, 0.034, 0.013), rough=0.6)
-            decal("shoe_tag_tongue", 0.026, 0.011, c + rm_ @ Vector((0.008, 0, 0.128)), (-1.1, 0, yaw + math.pi / 2), art.tag(tag_text, 0.026, 0.011), rough=0.6)
-    white, off = (0.86, 0.86, 0.84), (0.9, 0.9, 0.88)
-    shoe(ry0 + 0.16, white, off, 0.06, "VANS"); shoe(ry0 + 0.285, white, off, -0.04, "VANS")
-    shoe(ry0 + 0.52, (0.16, 0.08, 0.04), (0.5, 0.35, 0.2), 0.03); shoe(ry0 + 0.64, (0.16, 0.08, 0.04), (0.5, 0.35, 0.2), -0.05)
-    shoe(ry0 + 0.86, (0.07, 0.09, 0.14), (0.85, 0.84, 0.8), 0.08); shoe(ry0 + 0.98, (0.07, 0.09, 0.14), (0.85, 0.84, 0.8), 0.0)
+    shelf_z = 0.169
+    pairs = [("vans", "skate", (0.92, 0.92, 0.9), (0.95, 0.94, 0.9), "VANS", ry0 + 0.14),
+             ("dress", "dress", art.lin("#5a3420"), art.lin("#2a1a10"), None, ry0 + 0.48),
+             ("runner", "runner", art.lin("#1f2a44"), (0.9, 0.9, 0.88), None, ry0 + 0.82)]
+    for nm, style, up, so, tg, yy in pairs:
+        for k, (dy, yw, mir) in enumerate(((0.0, 0.05, 1), (0.125, -0.03, -1))):
+            sneaker(f"shoe_{nm}_{k}", (rx + 0.02, yy + dy, shelf_z), yw, up, so, style, tag_text=tg, mirror=mir)
     # tennis racket leaning between the mirror and the rack: dark green frame with copper at the throat
     ty = 0.31
     tl = 0.2                                            # lean away from the wall
@@ -1134,7 +1427,7 @@ scene.view_settings.exposure = 1.1
 os.makedirs(args.out, exist_ok=True)
 if args.blend:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.out, "room.blend"))
-CLOSE = {"piano": ((0.3, 0.9, 1.35), (2.05, 1.0, 0.95)), "chair": ((0.2, -0.8, 1.35), (2.05, -1.05, 0.95)), "shoes": ((-1.0, 0.75, 0.75), (-1.7, 0.7, 0.2)), "shelf": ((-0.45, 0.75, 1.5), (-0.45, 1.9, 1.5)), "desktop": ((-0.1, -0.75, 1.25), (0.0, -1.9, 0.8)), "deskwall": ((0.2, -0.3, 1.6), (0.2, -1.9, 1.6))}
+CLOSE = {"rack": ((-0.55, 0.35, 1.25), (-1.75, 1.0, 1.05)), "piano": ((0.3, 0.9, 1.35), (2.05, 1.0, 0.95)), "chair": ((0.2, -0.8, 1.35), (2.05, -1.05, 0.95)), "shoes": ((-1.0, 0.75, 0.75), (-1.7, 0.7, 0.2)), "shelf": ((-0.45, 0.75, 1.5), (-0.45, 1.9, 1.5)), "desktop": ((-0.1, -0.75, 1.25), (0.0, -1.9, 0.8)), "deskwall": ((0.2, -0.3, 1.6), (0.2, -1.9, 1.6))}
 
 
 def close_camera(v):
