@@ -25,3 +25,6 @@ portrait-worker/dist/
 
 # jetbrains setting folder
 .idea/
+
+# python caches
+__pycache__/
