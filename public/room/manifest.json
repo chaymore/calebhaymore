@@ -13,12 +13,12 @@
   "bookshelf": {
    "texture": "bookshelf.jpg",
    "size": 3072,
-   "triangles": 37764
+   "triangles": 14712
   },
   "bookshelf__detail": {
    "texture": "bookshelf__detail.jpg",
    "size": 3072,
-   "triangles": 1588
+   "triangles": 152
   },
   "window__detail": {
    "texture": "window__detail.jpg",
@@ -48,12 +48,12 @@
   "desk": {
    "texture": "desk.jpg",
    "size": 1536,
-   "triangles": 16136
+   "triangles": 3132
   },
   "desk__detail": {
    "texture": "desk__detail.jpg",
    "size": 1536,
-   "triangles": 24
+   "triangles": 6
   },
   "door": {
    "texture": "door.jpg",

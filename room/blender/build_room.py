@@ -723,7 +723,7 @@ def build_desk():
     sp = Euler((tilt, 0, 0)).to_matrix()
     deck = Vector((lx, ly, z + 0.14))
     for sx in (-1, 1):                                   # two side plates and a cross bar
-        prism("stand_side", [(-0.12, -0.13), (0.11, -0.13), (0.11, 0.05), (-0.12, -0.03)], 0.008, Vector((lx + sx * 0.11, ly, z + 0.13)), alu, rot=(0, 0, math.pi / 2), bevel=0.002)
+        prism("stand_side", [(-0.11, -0.13), (0.1, -0.13), (0.1, -0.035), (-0.11, 0.03)], 0.008, Vector((lx + sx * 0.11, ly, z + 0.13)), alu, rot=(0, 0, math.pi / 2), bevel=0.002)
     box("stand_bar", (0.23, 0.02, 0.012), (lx, ly + 0.1, z + 0.006), alu, bevel=0.003)
     box("stand_top", (0.26, 0.2, 0.006), deck, alu, bevel=0.002, rot=(tilt, 0, 0))
     base_c = deck + sp @ Vector((0, 0.01, 0.009))
@@ -741,7 +741,7 @@ def build_desk():
     kx, ky = mx, yc + 0.1
     kb = box("keyboard", (0.28, 0.115, 0.008), (kx, ky, z + 0.006), alu, bevel=0.003, rot=(-0.05, 0, 0))
     decal("keyboard_keys", 0.27, 0.105, (kx, ky, z + 0.0105), (-math.pi / 2 + 0.05, 0, math.pi), art.keyboard(0.27, 0.105))
-    box("trackpad", (0.16, 0.115, 0.005), (kx + 0.25, ky, z + 0.003), flat("trackpad_glass", (0.86, 0.86, 0.87), rough=0.25), bevel=0.003)
+    box("trackpad", (0.16, 0.115, 0.005), (kx - 0.25, ky, z + 0.003), flat("trackpad_glass", (0.86, 0.86, 0.87), rough=0.25), bevel=0.003)
 
     # chair
     cx, cy = dx - 0.12, yc + 0.62
