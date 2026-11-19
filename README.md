@@ -28,6 +28,10 @@ See [`docs/portrait-qa.md`](docs/portrait-qa.md) for deployment, privacy, and ma
 
 `/calendar` lets visitors book a 15 or 30 minute Google Meet from Caleb's Google Calendar free/busy. The same Worker serves it. See [`docs/calendar-booking.md`](docs/calendar-booking.md) for the one-time Google OAuth setup.
 
+## Preview URLs
+
+Every push to a branch other than `main` builds the site and publishes it to Cloudflare (`.github/workflows/preview.yml`). The run's summary on the Actions tab lists the address. `https://calebhaymore-preview.<subdomain>.workers.dev` always shows the newest push, and each branch also gets its own address. It uses the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets.
+
 ## Commands
 
 | Command | Action |

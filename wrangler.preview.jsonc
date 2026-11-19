@@ -1,0 +1,12 @@
+// Preview deployments of the built site, served by Cloudflare Workers static assets.
+// Used only by .github/workflows/preview.yml. The live site still deploys to GitHub Pages from main.
+{
+  "name": "calebhaymore-preview",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "workers_dev": true,
+  "preview_urls": true
+}

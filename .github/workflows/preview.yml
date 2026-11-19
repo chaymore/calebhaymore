@@ -1,0 +1,59 @@
+name: Preview
+
+# Builds every push to a branch other than main and publishes it to Cloudflare.
+#   - https://calebhaymore-preview.<your-subdomain>.workers.dev always shows the newest push.
+#   - Each branch also gets its own address; the job summary lists both.
+# Uses the same repository secrets as the portrait worker: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+# The token needs the "Workers Scripts: Edit" permission (the "Edit Cloudflare Workers" template has it).
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          PUBLIC_PORTRAIT_API_URL: ${{ vars.PUBLIC_PORTRAIT_API_URL }}
+      - name: Publish the newest push
+        id: latest
+        run: |
+          npx --yes wrangler@4 deploy -c wrangler.preview.jsonc | tee deploy.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Publish this branch at its own address
+        id: branch
+        continue-on-error: true
+        run: |
+          alias=$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40 | sed -E 's/-+$//')
+          npx --yes wrangler@4 versions upload -c wrangler.preview.jsonc --preview-alias "$alias" | tee upload.log
+          url=$(grep -oE "https://${alias}-[a-z0-9.-]+\.workers\.dev" upload.log | head -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Summary
+        run: |
+          {
+            echo "### Preview"
+            echo ""
+            echo "- Newest push: ${{ steps.latest.outputs.url }}/room"
+            if [ -n "${{ steps.branch.outputs.url }}" ]; then echo "- This branch: ${{ steps.branch.outputs.url }}/room"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
