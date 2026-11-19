@@ -21,17 +21,15 @@ interface Manifest {
 const WALLS = ['north', 'east', 'south', 'west'] as const;
 type Wall = (typeof WALLS)[number];
 const DIR: Record<Wall, [number, number]> = { north: [0, 1], east: [1, 0], south: [0, -1], west: [-1, 0] };
-const BACK = 0.6;
-const EYE = 1.38;
+const BACK = 0.8;
+const EYE = 1.25;
 
 /** Blender (x, y, z-up) to three.js (x, y-up, z). */
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, z, -y);
 
 export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) {
   const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
-  const label = root.querySelector<HTMLElement>('[data-room-label]')!;
   const loading = root.querySelector<HTMLElement>('[data-room-loading]')!;
-  const wallButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-wall]')];
   const panels = [...root.querySelectorAll<HTMLElement>('[data-panel]')];
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -54,7 +52,8 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
 
   function wallPose(w: Wall) {
     const [dx, dy] = DIR[w];
-    return { eye: v(-dx * BACK, -dy * BACK, EYE), look: v(dx * 2.0, dy * 2.0, EYE - 0.08) };
+    // looking slightly down, so the whole wall shows down to the floor
+    return { eye: v(-dx * BACK, -dy * BACK, EYE), look: v(dx * 2.2, dy * 2.2, EYE - 0.21) };
   }
 
   function aim(snap = false) {
@@ -62,9 +61,9 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     posT.copy(p.eye);
     lookT.copy(p.look);
     if (snap || reduceMotion) { pos.copy(posT); look.copy(lookT); }
-    wallButtons.forEach((b) => b.setAttribute('aria-pressed', String(!open && b.dataset.wall === wall)));
     panels.forEach((el) => { el.hidden = !open || el.dataset.panel !== open.group; });
     root.dataset.open = open ? open.group : '';
+    zoomT = 1;
     shiftT = open && root.clientWidth > 767 ? Math.min(420, root.clientWidth) / 2 : 0;
     if (snap || reduceMotion) shift = shiftT;
     needsFrame = true;
@@ -76,7 +75,6 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     aim();
   }
 
-  function face(w: Wall) { open = null; wall = w; aim(); }
 
   function openGroup(group: string) {
     const h = hotspots.find((x) => x.group === group);
@@ -90,14 +88,21 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
   function close() { if (open) { open = null; aim(); } }
 
   // ---- size
+  // zoom: the scroll wheel or a pinch narrows the view, so a visitor can read a book spine
+  let baseFov = 52, zoom = 1, zoomT = 1;
+  const pointers = new Map<number, { x: number; y: number }>();
+  let pinch0 = 0, zoom0 = 1;
+
   function resize() {
     const w = root.clientWidth, h = root.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // Hold a horizontal view of about 79 degrees on wide screens; on tall screens keep the vertical view sane.
-    const hfov = THREE.MathUtils.degToRad(78.6);
-    const vfov = 2 * Math.atan(Math.tan(hfov / 2) / camera.aspect);
-    camera.fov = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(vfov), 30, 68);
+    // Tall enough to show a wall from floor to ceiling line (52 degrees), and on narrow screens
+    // wide enough (62 degrees across) that a wall still reads as a wall.
+    const across = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(62) / 2) / camera.aspect);
+    baseFov = THREE.MathUtils.clamp(Math.max(52, THREE.MathUtils.radToDeg(across)), 52, 80);
+    camera.fov = baseFov / zoom;
     camera.updateProjectionMatrix();
     needsFrame = true;
   }
@@ -207,7 +212,7 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     return t;
   }
 
-  // ---- pointer: hover labels, click to open, drag or swipe to turn
+  // ---- pointer: hover to light an object, click to open, drag or swipe to turn, scroll or pinch to zoom
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   let down: { x: number; y: number; t: number } | null = null;
@@ -226,26 +231,53 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
       if (hovered) materials.get(hovered)?.forEach((x) => x.color.setScalar(1));
       hovered = g;
       if (g) materials.get(g)?.forEach((x) => x.color.setScalar(1.12));
-      canvas.style.cursor = g ? 'pointer' : 'grab';
-      label.textContent = g ? hotspots.find((h) => h.group === g)!.label : '';
-      label.hidden = !g;
       needsFrame = true;
     }
-    if (g && e) {
-      const r = root.getBoundingClientRect();
-      label.style.transform = `translate(${e.clientX - r.left + 14}px, ${e.clientY - r.top + 14}px)`;
-    }
+    const edge = e && !g && !open ? edgeOf(e) : 0;
+    canvas.style.cursor = g ? 'pointer' : edge < 0 ? 'w-resize' : edge > 0 ? 'e-resize' : 'grab';
+  }
+
+  /** -1 near the left edge, 1 near the right edge, 0 elsewhere. Clicking an edge turns to the next wall. */
+  function edgeOf(e: PointerEvent) {
+    const r = canvas.getBoundingClientRect();
+    const f = (e.clientX - r.left) / r.width;
+    return f < 0.08 ? -1 : f > 0.92 ? 1 : 0;
   }
 
   canvas.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
     leanT.set(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
     needsFrame = true;
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch0) zoomT = THREE.MathUtils.clamp(zoom0 * d / pinch0, 1, 3);
+      down = null;
+      return;
+    }
     if (!down && e.pointerType !== 'touch') setHover(open ? '' : pick(e), e);
   });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomT = THREE.MathUtils.clamp(zoomT * Math.exp(-e.deltaY * 0.0015), 1, 3);
+    needsFrame = true;
+  }, { passive: false });
   canvas.addEventListener('pointerleave', () => { leanT.set(0, 0); setHover(''); });
-  canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
+      zoom0 = zoomT;
+      down = null;
+      return;
+    }
+    down = { x: e.clientX, y: e.clientY, t: performance.now() };
+  });
   canvas.addEventListener('pointerup', (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch0 = 0;
     if (!down) return;
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
     down = null;
@@ -253,17 +285,17 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     if (Math.hypot(dx, dy) > 8) return;
     if (open) { close(); return; }
     const g = pick(e);
-    if (g) { setHover(''); openGroup(g); }
+    if (g) { setHover(''); openGroup(g); return; }
+    const edge = edgeOf(e);
+    if (edge) turn(edge);
   });
-  canvas.addEventListener('pointercancel', () => { down = null; });
+  canvas.addEventListener('pointercancel', (e) => { pointers.delete(e.pointerId); pinch0 = 0; down = null; });
 
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowRight') turn(1);
     else if (e.key === 'ArrowLeft') turn(-1);
   });
-  wallButtons.forEach((b) => b.addEventListener('click', () => face(b.dataset.wall as Wall)));
-  root.querySelectorAll<HTMLElement>('[data-turn]').forEach((b) => b.addEventListener('click', () => turn(Number(b.dataset.turn))));
   root.querySelectorAll<HTMLElement>('[data-close]').forEach((b) => b.addEventListener('click', close));
   root.querySelectorAll<HTMLElement>('[data-open]').forEach((b) => b.addEventListener('click', () => {
     const h = hotspots.find((x) => x.group === b.dataset.open);
@@ -279,12 +311,15 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
     const k = 1 - Math.exp(-dt * 4.2);
-    const moving = pos.distanceToSquared(posT) > 1e-7 || look.distanceToSquared(lookT) > 1e-7 || lean.distanceToSquared(leanT) > 1e-6 || Math.abs(shift - shiftT) > 0.3;
+    const moving = Math.abs(zoom - zoomT) > 1e-3 || pos.distanceToSquared(posT) > 1e-7 || look.distanceToSquared(lookT) > 1e-7 || lean.distanceToSquared(leanT) > 1e-6 || Math.abs(shift - shiftT) > 0.3;
     if (!moving && !needsFrame) return;
     needsFrame = false;
     pos.lerp(posT, k);
     look.lerp(lookT, k);
     shift += (shiftT - shift) * k;
+    zoom += (zoomT - zoom) * (reduceMotion ? 1 : 1 - Math.exp(-dt * 8));
+    camera.fov = baseFov / zoom;
+    camera.updateProjectionMatrix();
     if (Math.abs(shift) > 0.3) camera.setViewOffset(root.clientWidth, root.clientHeight, shift, 0, root.clientWidth, root.clientHeight);
     else camera.clearViewOffset();
     lean.lerp(leanT, reduceMotion ? 1 : 1 - Math.exp(-dt * 6));
@@ -303,7 +338,7 @@ export function startRoom(root: HTMLElement, base: string, hotspots: Hotspot[]) 
   requestAnimationFrame(frame);
   load().catch((err) => {
     console.error(err);
-    loading.textContent = 'The room did not load. Use the links below.';
+    loading.textContent = 'The room did not load.';
     root.dataset.failed = 'true';
   });
 }

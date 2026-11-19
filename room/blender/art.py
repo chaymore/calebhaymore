@@ -489,3 +489,43 @@ def photo(path, w, h, warmth=0.08):
     img = img.resize((W, H), Image.LANCZOS)
     img = Image.blend(img, Image.new("RGB", (W, H), (240, 214, 170)), warmth)
     return _save(_wear(img, key, 0.4), key)
+
+
+def wallpaper(w, h):
+    """An original desktop picture: soft dusk bands, so the laptop screen reads as switched on."""
+    key = f"wallpaper{w}{h}"
+    W, H = int(w * 4000), int(h * 4000)
+    img = Image.new("RGB", (W, H))
+    d = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H
+        d.line([0, y, W, y], fill=(int(40 + 190 * t), int(60 + 80 * t * t), int(120 + 40 * (1 - t))))
+    for k, (c, a) in enumerate((((236, 150, 90), 0.62), ((180, 90, 110), 0.72), ((70, 50, 100), 0.84))):
+        pts = [(x, H * a + H * 0.06 * math.sin(x / W * 5.2 + k * 1.7)) for x in range(0, W + 8, 8)]
+        d.polygon(pts + [(W, H), (0, H)], fill=c)
+    return _save(img.filter(ImageFilter.GaussianBlur(W / 300)), key)
+
+
+def keyboard(w, h, rows=6, cols=15):
+    """A flat, low-profile keyboard seen from above: pale keys on a silver deck."""
+    key = f"kbd{w}{h}"
+    W, H = int(w * 6000), int(h * 6000)
+    img = Image.new("RGB", (W, H), (200, 201, 204))
+    d = ImageDraw.Draw(img)
+    m = W * 0.02
+    kw, kh = (W - 2 * m) / cols, (H - 2 * m) / rows
+    for r in range(rows):
+        x = m
+        widths = [1] * cols
+        if r == rows - 1:
+            widths = [1, 1, 1, 1.3, 6.2, 1.3, 1, 1, 1.2]
+        elif r == 0:
+            widths = [1.0] * cols
+        scale = cols / sum(widths)
+        for wk in widths:
+            ww = wk * scale * kw
+            hh = kh * (0.6 if r == 0 else 1)
+            y = m + r * kh + (kh - hh) / 2
+            d.rounded_rectangle([x + kw * 0.06, y + kh * 0.06, x + ww - kw * 0.06, y + hh - kh * 0.06], radius=kw * 0.12, fill=(246, 246, 247), outline=(175, 176, 180))
+            x += ww
+    return _save(img, key)

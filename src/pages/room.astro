@@ -10,13 +10,13 @@ const live = projects.filter((p) => !p.draft).slice(0, 5);
 
 // Camera positions use the scene's axes: x east, y north, z up, in metres.
 const hotspots: Hotspot[] = [
-  { group: 'piano', label: 'Piano: City of Stars', eye: [0.35, 0.95, 1.3], look: [2.05, 1.02, 0.95] },
-  { group: 'bookshelf', label: 'Bookshelf: writing and research', eye: [-0.25, 0.45, 1.48], look: [-0.25, 1.9, 1.46] },
-  { group: 'nook', label: 'Reading chair: about me', eye: [0.25, -0.75, 1.35], look: [2.05, -1.1, 1.0] },
-  { group: 'desk', label: 'Desk: projects', eye: [-0.25, -0.45, 1.3], look: [-0.3, -1.9, 1.05] },
-  { group: 'door', label: 'Door: contact', eye: [-0.6, -1.2, 1.35], look: [-2.05, -1.27, 1.15] },
-  { group: 'mirror', label: 'Mirror: ask me something', eye: [-0.75, -0.08, 1.2], look: [-2.05, -0.08, 0.95] },
-  { group: 'rack', label: 'Clothing rack: what I do', eye: [-0.25, 0.75, 1.2], look: [-2.05, 1.0, 0.75] },
+  { group: 'piano', label: 'Piano: City of Stars', eye: [0.3, 1.0, 1.3], look: [1.6, 1.12, 0.95] },
+  { group: 'bookshelf', label: 'Bookshelf: writing and research', eye: [0.0, 0.55, 1.2], look: [0.0, 1.8, 1.1] },
+  { group: 'nook', label: 'Reading chair: about me', eye: [0.2, -0.6, 1.35], look: [1.6, -1.1, 1.0] },
+  { group: 'desk', label: 'Desk: projects', eye: [0.05, -0.75, 1.2], look: [0.05, -1.8, 0.85] },
+  { group: 'door', label: 'Door: contact', eye: [-0.4, -1.0, 1.35], look: [-1.6, -1.25, 1.1] },
+  { group: 'mirror', label: 'Mirror: ask me something', eye: [-0.55, -0.08, 1.2], look: [-1.6, -0.08, 0.95] },
+  { group: 'rack', label: 'Clothing rack: what I do', eye: [-0.25, 0.65, 1.2], look: [-1.6, 1.0, 0.75] },
 ];
 ---
 <Layout title="Caleb Haymore" description="Caleb Haymore's room. Look around: the bookshelf, the desk, the reading chair, the mirror, the clothing rack, and the door each open part of the site." minimal bodyClass="room-page">
@@ -24,29 +24,21 @@ const hotspots: Hotspot[] = [
     <h1 class="sr-only">{site.name}</h1>
     <canvas aria-label="A small room at golden hour with a bookshelf, a piano, a reading chair, a desk, a door, a mirror, and a clothing rack. Each one opens part of the site."></canvas>
     <p class="room-loading" data-room-loading>Opening the room</p>
-    <p class="room-label" data-room-label hidden></p>
 
     <header class="room-top">
       <a class="room-name" href="/">{site.name}</a>
-      <nav aria-label="Objects in the room">
-        {hotspots.map((h) => <button type="button" data-open={h.group}>{h.label.split(':')[1].trim()}</button>)}
-      </nav>
     </header>
 
-    <footer class="room-walls" aria-label="Turn to a wall">
-      <button type="button" data-turn="-1" aria-label="Turn left">‹</button>
-      <button type="button" data-wall="north">Bookshelf</button>
-      <button type="button" data-wall="east">Window</button>
-      <button type="button" data-wall="south">Desk</button>
-      <button type="button" data-wall="west">Door</button>
-      <button type="button" data-turn="1" aria-label="Turn right">›</button>
-    </footer>
+    <!-- No visible navigation: visitors explore by looking around. Keyboard and screen-reader users get this list. -->
+    <nav class="sr-only" aria-label="Objects in the room">
+      {hotspots.map((h) => <button type="button" data-open={h.group}>{h.label}</button>)}
+    </nav>
 
     <section class="room-panel" data-panel="bookshelf" hidden aria-label="Writing and research">
       <button type="button" class="room-close" data-close>[ Close ]</button>
       <p class="eyebrow">Bookshelf:</p>
       <h2>Writing and research</h2>
-      <p>Essays, research notes, and the prompt I use to build my own knowledge wiki.</p>
+      <p>Every book on these shelves is one I have read, in the order I read them. My own writing and research live here too.</p>
       <ul>
         <li><a href="/writing">Writing ↗</a></li>
         <li><a href="/research">Research ↗</a></li>
@@ -158,21 +150,14 @@ const hotspots: Hotspot[] = [
   .room canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; opacity: 0; transition: opacity 1.2s ease; }
   .room[data-ready] canvas { opacity: 1; }
   .room .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-  .room-loading, .room-label, .room-top, .room-walls, .room-close, .room .eyebrow { font-family: var(--mono); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.02em; }
+  .room-loading, .room-top, .room-close, .room .eyebrow { font-family: var(--mono); text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.02em; }
   .room-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--gray); }
-  .room-label { position: absolute; left: 0; top: 0; margin: 0; padding: 6px 9px; background: var(--black); color: var(--sand); pointer-events: none; white-space: nowrap; z-index: 3; }
   .room-top { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 18px 2vw; pointer-events: none; }
   .room-top > * { pointer-events: auto; }
-  .room-top nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 18px; }
   .room a { color: inherit; text-decoration: none; }
   .room a:hover, .room button:hover { color: var(--gray); }
   .room button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-  .room-name, .room-top button { text-shadow: 0 0 12px rgba(0,0,0,.65); }
-  .room[data-open]:not([data-open=""]) .room-top nav { visibility: hidden; }
-  .room-walls { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; background: var(--black); border: 1px solid var(--sand); }
-  .room-walls button { padding: 10px 14px; border-left: 1px solid var(--sand); }
-  .room-walls button:first-child { border-left: 0; }
-  .room-walls button[aria-pressed="true"] { background: var(--sand); color: var(--black); }
+  .room-name { text-shadow: 0 0 12px rgba(0,0,0,.65); }
   .room-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 100%); padding: 64px 28px 28px; background: var(--black); color: var(--sand); overflow-y: auto; z-index: 4; border-left: 1px solid var(--sand); }
   .room-panel h2 { margin: 0 0 0.7rem; font-weight: 400; font-size: clamp(1.75rem, 1.44vw + 1rem, 2.3rem); line-height: 1.14; letter-spacing: -0.03rem; }
   .room-panel .eyebrow { margin: 0 0 0.7rem; font-weight: 300; color: var(--gray); }
@@ -188,9 +173,6 @@ const hotspots: Hotspot[] = [
   .room-noscript { position: absolute; inset: auto 2vw 80px; margin: 0; }
   @media (max-width: 767px) {
     .room-top { padding: 14px 6vw; }
-    .room-top nav { display: none; }
-    .room-walls { width: calc(100% - 12vw); bottom: 14px; }
-    .room-walls button { flex: 1 1 auto; padding: 12px 4px; font-size: 0.7rem; }
     .room-panel { top: auto; left: 0; width: 100%; max-height: 62svh; padding: 54px 6vw 24px; border-left: 0; border-top: 1px solid var(--sand); }
     .room-close { right: 6vw; }
   }
